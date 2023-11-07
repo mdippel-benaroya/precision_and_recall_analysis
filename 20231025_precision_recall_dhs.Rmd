@@ -9,17 +9,13 @@ The goal of this rmd is to get precision and recall heat maps to try and develop
 
 This version will use pcre_p for DHS as the fill instead of precision and recall based on PICS values and the x-axis will be FC Log Adj p-value which is used to calculate pCREs. The pcre_p value is based on the variant category for pCREs. 
 
-This html will make plots with these filters for pCREs
-
-1. max.logPadj_BH>j & max_abs_fc>k
-
-2. 
 
 ```{r, echo=FALSE, message=FALSE}
 # loading packages
 library(tidyverse)
 library(RColorBrewer)
 library(rmarkdown)
+library(GenomicRanges)
 ```
 
 # HTML version
@@ -357,7 +353,7 @@ names(precision.skew.dat) <- c("FC", "pAdj", "pcre_p")
 
 # CD4 DHS enrichment heat map
 
-```{r correct heatmap, eval=FALSE}
+```{r FC Adjp heatmap, eval=FALSE}
 FC_AdjP_CD4_DHS_heat_map <- ggplot(data.frame(precision.skew.dat), aes(x = as.character(pAdj), y = as.character(FC), fill = -log10(pcre_p))) +
   geom_tile() + geom_text(aes(label = round(-log10(pcre_p), digits = 2))) + xlab("Log10 Adj FC p-value") + ylab("Log2FC") + 
   ggtitle("CD4 DHS enrichment heatmap") + scale_fill_gradient(low = "gold", high = "firebrick2") 
@@ -367,113 +363,11 @@ FC_AdjP_CD4_DHS_heat_map
 
 ![*CD4 DHS enrichment heat map*](/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/plots/FC_AdjP_CD4_DHS_heat_map.png){width=px}
 
-FC and AdjP with different values
 
-```{r, eval=FALSE}
-#skew_seq <-c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
-# FDR_seq <- c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
-FC_seq <- c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
-AdjP_seq <- c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
-
-precision.skew.dat.2 <- NULL
-for(j in AdjP_seq){
-  for(k in FC_seq){
-mpra2 <- mpra
-   
-#Manually temporarily set these FDRs and adjusted p-values that are NA to -1 for easier TRUE/FALSE testing
-mpra2$Skew.logFDR[is.na(mpra2$Skew.logFDR)]<- (-1)
-mpra2$max.logPadj_BH[is.na(mpra2$max.logPadj_BH)]<- (-1)
-
-#For each variant, assign whether it has no activity (nEnhancer_nSkew), is a pCRE only (Enhancer_nSkew) or emVAR (Enhancer_Skew)
-mpra2$mpra_sig<-"nEnhancer_nSkew"
-for(i in 1:nrow(mpra2)){
-  if(mpra2[i,]$Skew.logFDR>1 & (mpra2[i,]$max.logPadj_BH>j & mpra[i,]$max_abs_fc>k) ){
-    mpra2[i,]$mpra_sig<-"Enhancer_Skew"
-  }else if(mpra2[i,]$Skew.logFDR<=1 & (mpra2[i,]$max.logPadj_BH>j & mpra[i,]$max_abs_fc>k) ){
-    mpra2[i,]$mpra_sig<-"Enhancer_nSkew"
-  }
-}
-#Set those -1 FDRs and p-values back to NA
-mpra2$Skew.logFDR[mpra2$Skew.logFDR<0]<- NA
-mpra2$max.logPadj_BH[mpra2$max.logPadj_BH<0]<- NA
-   
-#Make into a Granges file
-mpra.se<-makeGRangesFromDataFrame(mpra2,  seqnames = "chr", start.field = "snp_start", end.field = "snp_end",keep.extra.columns=TRUE)
-
-# This code finds where the genomic positions of the MPRA data and DHS peak data overlap
-#Find DHS peaks that overlap with MPRA
-overlap_peaks<-data.frame(subsetByOverlaps(dhs.pos.se, mpra.se, type="any"), stringsAsFactors = F)$peak #Find DHS peaks that overlap with MPRA SNPs
-overlap_index<-which(dhs.pos$peak%in%overlap_peaks) #Extract row indices of overlapping peaks from DHS file
-dhs.pos<-dhs.pos[overlap_index,] #Subset DHS peaks file by index of overlapping peaks
-# This removes the mpra.se and dhs.pos.se objects
-
-# Generate peak indices for MPRA SNPs for faster downstream processing
-# This creates a new dataframe with seqname, start and end 
-dhs.pos<-dhs.merge.dat[,c(1:3)]
-# This creates an index column which are just sequentially numbered (1,2,3 etc.)
-dhs.pos$index<-seq(1:nrow(dhs.pos))
-# This adds the index column to the last data set as well
-dhs.merge.dat$index<-seq(1:nrow(dhs.merge.dat))
-# This creates a column called peak_index to be filled in by the loop
-mpra2$peak_index<-NA
-# This loop adds a peak_index column to the mpra data
-for(i in 1:nrow(mpra2)){ #Add in DHS peak index for any peak overlapping MPRA SNP
-  mpra2[i,]$peak_index<-subset(dhs.pos, seqname==mpra2[i,]$chr & start<=mpra2[i,]$snp_end & end >=mpra2[i,]$snp_end)$index[1]  
-}
-# This creates a new dataframe which is the mpra data, but it is subset to only to pCREs and emVars and observations with a peak_index value
-pcre_index<-subset(mpra2, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew") & !is.na(peak_index))$peak_index #peak indices for MPRA pCRE SNPs only
-# This subsets the other observations
-non_pcre_index<-subset(mpra2, mpra_sig=="nEnhancer_nSkew" & !is.na(peak_index))$peak_index #peak indices for MPRA non-pCRE SNPs
-
-# This code creates the sample dataframe which in this case is just CD4. It is originally made with all the biosample names. 
-sample.dat <- data.frame(c("CD4"))
-colnames(sample.dat) <- "sample"
-
-# Calculate enrichments of MPRA pCREs in DHS peaks for each cell type
-
-# This created an empty dataframe to be filled by the loop
-dat.plot<-data.frame(sample= sample.dat$sample, pcre_fold=0, pcre_p=0, stringsAsFactors = F)
-# This loop creates fold enrichment and p-values for the pCREs
-for(i in 1:nrow(dat.plot)){
-  
-  #Find the column in the dhs data that correspond to that cell type
-  cell_col<-which(names(dhs.merge.dat)==dat.plot[i,]$sample)
-  
-  #find which peak_indexes for the peaks in that cell type
-  peak_index<-dhs.merge.dat[dhs.merge.dat[,cell_col]==1,]$index
-
-  #Calculate enrichment
-  a<-length(intersect(peak_index, pcre_index)) #Number of pCRE in DHS peak
-  b<-length(intersect(peak_index, non_pcre_index)) #Number of non-pCRE in DHS peak
-  c<-nrow(subset(mpra2, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew")))-a #Number of pCRE not in DHS
-  d<-nrow(subset(mpra2, mpra_sig=="nEnhancer_nSkew"))-b #Number of non-pCRE not in DHS
-  dat.plot[i,]$pcre_fold<-(a/(a+c))/(b/(b+d)) #Calcualte fold enrichment
-  dat.plot[i,]$pcre_p<-fisher.test(rbind(c(a,b), c(c, d)), alternative="two.sided")$p.value #Calculate p-value
-}
-pcre_p <- dat.plot$pcre_p
-   
-   precision.skew.dat.2 <- rbind(precision.skew.dat.2, data.frame(k, j, pcre_p)) # makes the data frame used for the heat map
-  }
-}
-
-names(precision.skew.dat.2) <- c("FC", "pAdj", "pcre_p")
-```
+```{r, eval=FALSE, echo=FALSE}
+# This loop is the same as the first, but I am making the loop faster using apply functions
 
 
-```{r correct heatmap, eval=FALSE}
-FC_AdjP_CD4_DHS_heat_map2 <- ggplot(data.frame(precision.skew.dat.2), aes(x = as.character(pAdj), y = as.character(FC), fill = -log10(pcre_p))) +
-  geom_tile() + geom_text(aes(label = round(-log10(pcre_p), digits = 2))) + xlab("Log10 Adj FC p-value") + ylab("Log2FC") + 
-  ggtitle("CD4 DHS enrichment heatmap") + scale_fill_gradient(low = "gold", high = "firebrick2") 
-FC_AdjP_CD4_DHS_heat_map2
-# ggsave("FC_AdjP_CD4_DHS_heat_map.png",plot = FC_AdjP_CD4_DHS_heat_map, path = "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/plots")
-```
-
-
-
-
-
-This loop is the same as the first, but I am making the loop faster using apply functions
-```{r, eval=FALSE}
 #skew_seq <-c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
 FC_seq <- c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
 AdjP_seq <- c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
@@ -482,7 +376,7 @@ precision.skew.dat <- NULL
 for(j in AdjP_seq){
   for(k in FC_seq){
 mpra2 <- mpra
-   
+
 #Manually temporarily set these FDRs and adjusted p-values that are NA to -1 for easier TRUE/FALSE testing
 mpra2$Skew.logFDR[is.na(mpra2$Skew.logFDR)]<- (-1)
 mpra2$max.logPadj_BH[is.na(mpra2$max.logPadj_BH)]<- (-1)
@@ -592,4 +486,593 @@ pcre_p <- dat.plot$pcre_p
 }
 
 names(precision.skew.dat) <- c("FC", "pAdj", "pcre_p")
+
+
+FC_AdjP_CD4_DHS_heat_map3 <- ggplot(data.frame(precision.skew.dat), aes(x = as.character(pAdj), y = as.character(FC), fill = -log10(pcre_p))) +
+  geom_tile() + geom_text(aes(label = round(-log10(pcre_p), digits = 2))) + xlab("Log10 Adj FC p-value") + ylab("Log2FC") + 
+  ggtitle("CD4 DHS enrichment heatmap") + scale_fill_gradient(low = "gold", high = "firebrick2") 
+FC_AdjP_CD4_DHS_heat_map3
+
+mpra2$Skew
 ```
+
+
+
+Heat maps which match the original precision and recall analysis.
+```{r, eval=FALSE}
+# Skew FDR vs. Skew heat map  
+skew_seq <-c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
+FDR_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+
+precision.skew.dat.dhs <- NULL
+for(j in skew_seq){
+  for(k in FDR_seq){
+mpra2 <- mpra
+
+mpra2$SkewFDR<- 10^-mpra2$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
+mpra2$Skew<- 2^mpra2$LogSkew # undo the log transformation of logSkew to create a column called skew
+
+#Manually temporarily set these FDRs and adjusted p-values that are NA to -1 for easier TRUE/FALSE testing
+mpra2$SkewFDR[is.na(mpra2$SkewFDR)]<- (-1)
+mpra2$Skew[is.na(mpra2$Skew)]<- (-1)
+
+###########################################################################  (NEW APPLY FUNCTION)
+
+#For each variant, assign whether it has no activity (nEnhancer_nSkew), is a pCRE only (Enhancer_nSkew) or emVAR (Enhancer_Skew)
+# mpra2$mpra_sig <- apply(mpra2, 1, function(row) {
+#  if (row["Skew.logFDR"] > 1) {
+#    if (row["Skew"] > j && row["SkewFDR"] > k) {
+#      return("Enhancer_Skew")
+#    } else {
+#      return("nEnhancer_nSkew")
+#    }
+#  } else if (row["Skew"] > j && row["SkewFDR"] > k) {
+#    return("Enhancer_nSkew")
+#  }
+#  return("nEnhancer_nSkew")
+# })
+
+#Manually temporarily set these FDRs and adjusted p-values that are NA to -1 for easier TRUE/FALSE testing
+mpra2$SkewFDR[is.na(mpra2$SkewFDR)]<- (-1)
+mpra2$Skew[is.na(mpra2$Skew)]<- (-1)
+
+#For each variant, assign whether it has no activity (nEnhancer_nSkew), is a pCRE only (Enhancer_nSkew) or emVAR (Enhancer_Skew)
+mpra2$mpra_sig<-"nEnhancer_nSkew"
+for(i in 1:nrow(mpra2)){
+  if(mpra2[i,]$Skew.logFDR>1 & (mpra2[i,]$Skew>j & mpra2[i,]$SkewFDR>k) ){
+    mpra2[i,]$mpra_sig<-"Enhancer_Skew"
+  }else if(mpra2[i,]$Skew.logFDR<=1 & (mpra2[i,]$Skew>j & mpra2[i,]$SkewFDR>k) ){
+    mpra2[i,]$mpra_sig<-"Enhancer_nSkew"
+  }
+}
+#Set those -1 FDRs and p-values back to NA
+mpra2$SkewFDR[mpra2$SkewFDR<0]<- NA
+mpra2$Skew[mpra2$Skew<0]<- NA
+
+###########################################################################
+
+#Set those -1 FDRs and p-values back to NA
+mpra2$SkewFDR[mpra2$SkewFDR<0]<- NA
+mpra2$Skew[mpra2$Skew<0]<- NA
+   
+#Make into a Granges file
+mpra.se<-makeGRangesFromDataFrame(mpra2,  seqnames = "chr", start.field = "snp_start", end.field = "snp_end",keep.extra.columns=TRUE)
+
+# This code finds where the genomic positions of the MPRA data and DHS peak data overlap
+#Find DHS peaks that overlap with MPRA
+overlap_peaks<-data.frame(subsetByOverlaps(dhs.pos.se, mpra.se, type="any"), stringsAsFactors = F)$peak #Find DHS peaks that overlap with MPRA SNPs
+overlap_index<-which(dhs.pos$peak%in%overlap_peaks) #Extract row indices of overlapping peaks from DHS file
+dhs.pos<-dhs.pos[overlap_index,] #Subset DHS peaks file by index of overlapping peaks
+# This removes the mpra.se and dhs.pos.se objects
+
+# Generate peak indices for MPRA SNPs for faster downstream processing
+# This creates a new dataframe with seqname, start and end 
+dhs.pos<-dhs.merge.dat[,c(1:3)]
+# This creates an index column which are just sequentially numbered (1,2,3 etc.)
+dhs.pos$index<-seq(1:nrow(dhs.pos))
+# This adds the index column to the last data set as well
+dhs.merge.dat$index<-seq(1:nrow(dhs.merge.dat))
+# This creates a column called peak_index to be filled in by the loop
+mpra2$peak_index<-NA
+
+###########################################################################  (NEW APPLY FUNCTION)
+
+for(i in 1:nrow(mpra2)){ #Add in DHS peak index for any peak overlapping MPRA SNP
+  mpra2[i,]$peak_index<-subset(dhs.pos, seqname==mpra2[i,]$chr & start<=mpra2[i,]$snp_end & end >=mpra2[i,]$snp_end)$index[1]  
+}
+
+###########################################################################
+
+# This creates a new dataframe which is the mpra data, but it is subset to only to pCREs and emVars and observations with a peak_index value
+pcre_index<-subset(mpra2, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew") & !is.na(peak_index))$peak_index #peak indices for MPRA pCRE SNPs only
+# This subsets the other observations
+non_pcre_index<-subset(mpra2, mpra_sig=="nEnhancer_nSkew" & !is.na(peak_index))$peak_index #peak indices for MPRA non-pCRE SNPs
+
+# This code creates the sample dataframe which in this case is just CD4. It is originally made with all the biosample names. 
+sample.dat <- data.frame(c("CD4"))
+colnames(sample.dat) <- "sample"
+
+# Calculate enrichments of MPRA pCREs in DHS peaks for each cell type
+
+# This created an empty dataframe to be filled by the loop
+dat.plot<-data.frame(sample= sample.dat$sample, pcre_fold=0, pcre_p=0, stringsAsFactors = F)
+# This loop creates fold enrichment and p-values for the pCREs
+
+########################################################################### (NEW APPLY FUNCTION)
+
+for(i in 1:nrow(dat.plot)){
+  
+  #Find the column in the dhs data that correspond to that cell type
+  cell_col<-which(names(dhs.merge.dat)==dat.plot[i,]$sample)
+  
+  #find which peak_indexes for the peaks in that cell type
+  peak_index<-dhs.merge.dat[dhs.merge.dat[,cell_col]==1,]$index
+
+  #Calculate enrichment
+  a<-length(intersect(peak_index, pcre_index)) #Number of pCRE in DHS peak
+  b<-length(intersect(peak_index, non_pcre_index)) #Number of non-pCRE in DHS peak
+  c<-nrow(subset(mpra2, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew")))-a #Number of pCRE not in DHS
+  d<-nrow(subset(mpra2, mpra_sig=="nEnhancer_nSkew"))-b #Number of non-pCRE not in DHS
+  dat.plot[i,]$pcre_fold<-(a/(a+c))/(b/(b+d)) #Calcualte fold enrichment
+  dat.plot[i,]$pcre_p<-fisher.test(rbind(c(a,b), c(c, d)), alternative="two.sided")$p.value #Calculate p-value
+}
+
+###########################################################################
+
+pcre_p <- dat.plot$pcre_p
+   
+   precision.skew.dat.dhs <- rbind(precision.skew.dat.dhs, data.frame(k, j, pcre_p)) # makes the data frame used for the heat map
+  }
+}
+names(precision.skew.dat.dhs) <- c("FDR", "Skew", "pcre_p")
+
+
+Skew_FDR_CD4_DHS_heat_map <- ggplot(data.frame(precision.skew.dat.dhs), aes(x = as.character(FDR), y = as.character(Skew), fill = -log10(pcre_p))) +
+  geom_tile() + geom_text(aes(label = round(-log10(pcre_p), digits = 2))) + xlab("Skew FDR") + ylab("Skew") + 
+  ggtitle("CD4 DHS enrichment heatmap") + scale_fill_gradient(low = "gold", high = "firebrick2") 
+Skew_FDR_CD4_DHS_heat_map
+
+##############################################################################################
+#############
+#############
+#############
+##############################################################################################
+
+# Skew FDR vs. FC heat map  
+FC_seq <- c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3, 4, 5, 6, 7, 8)
+FDR_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+
+precision.FC.dat.dhs <- NULL
+for(j in FC_seq){
+  for(k in FDR_seq){
+mpra2 <- mpra
+
+mpra2$SkewFDR<- 10^-mpra2$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
+mpra2$Skew<- 2^mpra2$LogSkew # undo the log transformation of logSkew to create a column called skew
+mpra2$FC<- 2^mpra2$max_abs_fc # undo the log transformation of log 2 fold change to create a column called FC
+
+#Manually temporarily set these FDRs and adjusted p-values that are NA to -1 for easier TRUE/FALSE testing
+mpra2$SkewFDR[is.na(mpra2$SkewFDR)]<- (-1)
+mpra2$FC[is.na(mpra2$FC)]<- (-1)
+
+###########################################################################  (NEW APPLY FUNCTION)
+
+#For each variant, assign whether it has no activity (nEnhancer_nSkew), is a pCRE only (Enhancer_nSkew) or emVAR (Enhancer_Skew)
+# mpra2$mpra_sig <- apply(mpra2, 1, function(row) {
+#  if (row["Skew.logFDR"] > 1) {
+#    if (row["FC"] > j && row["SkewFDR"] > k) {
+#      return("Enhancer_Skew")
+#    } else {
+#      return("nEnhancer_nSkew")
+#    }
+#  } else if (row["FC"] > j && row["SkewFDR"] > k) {
+#    return("Enhancer_nSkew")
+#  }
+#  return("nEnhancer_nSkew")
+# })
+
+#Manually temporarily set these FDRs and adjusted p-values that are NA to -1 for easier TRUE/FALSE testing
+mpra2$SkewFDR[is.na(mpra2$SkewFDR)]<- (-1)
+mpra2$FC[is.na(mpra2$FC)]<- (-1)
+
+#For each variant, assign whether it has no activity (nEnhancer_nSkew), is a pCRE only (Enhancer_nSkew) or emVAR (Enhancer_Skew)
+mpra2$mpra_sig<-"nEnhancer_nSkew"
+for(i in 1:nrow(mpra2)){
+  if(mpra2[i,]$Skew.logFDR>1 & (mpra2[i,]$FC>j & mpra2[i,]$SkewFDR>k) ){
+    mpra2[i,]$mpra_sig<-"Enhancer_Skew"
+  }else if(mpra2[i,]$Skew.logFDR<=1 & (mpra2[i,]$FC>j & mpra2[i,]$SkewFDR>k) ){
+    mpra2[i,]$mpra_sig<-"Enhancer_nSkew"
+  }
+}
+#Set those -1 FDRs and p-values back to NA
+mpra2$SkewFDR[mpra2$SkewFDR<0]<- NA
+mpra2$FC[mpra2$FC<0]<- NA
+
+
+
+
+###########################################################################
+
+#Set those -1 FDRs and p-values back to NA
+mpra2$SkewFDR[mpra2$SkewFDR<0]<- NA
+mpra2$FC[mpra2$FC<0]<- NA
+   
+#Make into a Granges file
+mpra.se<-makeGRangesFromDataFrame(mpra2,  seqnames = "chr", start.field = "snp_start", end.field = "snp_end",keep.extra.columns=TRUE)
+
+# This code finds where the genomic positions of the MPRA data and DHS peak data overlap
+#Find DHS peaks that overlap with MPRA
+overlap_peaks<-data.frame(subsetByOverlaps(dhs.pos.se, mpra.se, type="any"), stringsAsFactors = F)$peak #Find DHS peaks that overlap with MPRA SNPs
+overlap_index<-which(dhs.pos$peak%in%overlap_peaks) #Extract row indices of overlapping peaks from DHS file
+dhs.pos<-dhs.pos[overlap_index,] #Subset DHS peaks file by index of overlapping peaks
+# This removes the mpra.se and dhs.pos.se objects
+
+# Generate peak indices for MPRA SNPs for faster downstream processing
+# This creates a new dataframe with seqname, start and end 
+dhs.pos<-dhs.merge.dat[,c(1:3)]
+# This creates an index column which are just sequentially numbered (1,2,3 etc.)
+dhs.pos$index<-seq(1:nrow(dhs.pos))
+# This adds the index column to the last data set as well
+dhs.merge.dat$index<-seq(1:nrow(dhs.merge.dat))
+# This creates a column called peak_index to be filled in by the loop
+mpra2$peak_index<-NA
+
+###########################################################################  (NEW APPLY FUNCTION)
+
+for(i in 1:nrow(mpra2)){ #Add in DHS peak index for any peak overlapping MPRA SNP
+  mpra2[i,]$peak_index<-subset(dhs.pos, seqname==mpra2[i,]$chr & start<=mpra2[i,]$snp_end & end >=mpra2[i,]$snp_end)$index[1]  
+}
+
+###########################################################################
+
+# This creates a new dataframe which is the mpra data, but it is subset to only to pCREs and emVars and observations with a peak_index value
+pcre_index<-subset(mpra2, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew") & !is.na(peak_index))$peak_index #peak indices for MPRA pCRE SNPs only
+# This subsets the other observations
+non_pcre_index<-subset(mpra2, mpra_sig=="nEnhancer_nSkew" & !is.na(peak_index))$peak_index #peak indices for MPRA non-pCRE SNPs
+
+# This code creates the sample dataframe which in this case is just CD4. It is originally made with all the biosample names. 
+sample.dat <- data.frame(c("CD4"))
+colnames(sample.dat) <- "sample"
+
+# Calculate enrichments of MPRA pCREs in DHS peaks for each cell type
+
+# This created an empty dataframe to be filled by the loop
+dat.plot<-data.frame(sample= sample.dat$sample, pcre_fold=0, pcre_p=0, stringsAsFactors = F)
+# This loop creates fold enrichment and p-values for the pCREs
+
+########################################################################### (NEW APPLY FUNCTION)
+
+for(i in 1:nrow(dat.plot)){
+  
+  #Find the column in the dhs data that correspond to that cell type
+  cell_col<-which(names(dhs.merge.dat)==dat.plot[i,]$sample)
+  
+  #find which peak_indexes for the peaks in that cell type
+  peak_index<-dhs.merge.dat[dhs.merge.dat[,cell_col]==1,]$index
+
+  #Calculate enrichment
+  a<-length(intersect(peak_index, pcre_index)) #Number of pCRE in DHS peak
+  b<-length(intersect(peak_index, non_pcre_index)) #Number of non-pCRE in DHS peak
+  c<-nrow(subset(mpra2, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew")))-a #Number of pCRE not in DHS
+  d<-nrow(subset(mpra2, mpra_sig=="nEnhancer_nSkew"))-b #Number of non-pCRE not in DHS
+  dat.plot[i,]$pcre_fold<-(a/(a+c))/(b/(b+d)) #Calcualte fold enrichment
+  dat.plot[i,]$pcre_p<-fisher.test(rbind(c(a,b), c(c, d)), alternative="two.sided")$p.value #Calculate p-value
+}
+
+###########################################################################
+
+pcre_p <- dat.plot$pcre_p
+   
+   precision.FC.dat.dhs <- rbind(precision.FC.dat.dhs, data.frame(k, j, pcre_p)) # makes the data frame used for the heat map
+  }
+}
+names(precision.FC.dat.dhs) <- c("FDR", "FC", "pcre_p")
+
+FC_FDR_CD4_DHS_heat_map <- ggplot(data.frame(precision.FC.dat.dhs), aes(x = as.character(FDR), y = as.character(FC), fill = -log10(pcre_p))) +
+  geom_tile() + geom_text(aes(label = round(-log10(pcre_p), digits = 2))) + xlab("Skew FDR") + ylab("FC") + 
+  ggtitle("CD4 DHS enrichment FC heatmap") + scale_fill_gradient(low = "gold", high = "firebrick2") 
+FC_FDR_CD4_DHS_heat_map
+
+
+#######################################################################
+############
+############
+############
+#######################################################################
+
+# Skew FDR vs. BH heat map  
+BH_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+FDR_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+
+precision.BH.dat.dhs <- NULL
+for(j in BH_seq){
+  for(k in FDR_seq){
+mpra2 <- mpra
+
+mpra2$SkewFDR<- 10^-mpra2$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
+mpra2$Skew<- 2^mpra2$LogSkew # undo the log transformation of logSkew to create a column called skew
+mpra2$BH<- 10^-mpra2$max.logPadj_BH # undo the log transformation of log 2 fold change to create a column called BH
+
+#Manually temporarily set these FDRs and adjusted p-values that are NA to -1 for easier TRUE/FALSE testing
+mpra2$SkewFDR[is.na(mpra2$SkewFDR)]<- (-1)
+mpra2$BH[is.na(mpra2$BH)]<- (-1)
+
+###########################################################################  (NEW APPLY FUNCTION)
+
+#For each variant, assign whether it has no activity (nEnhancer_nSkew), is a pCRE only (Enhancer_nSkew) or emVAR (Enhancer_Skew)
+#mpra2$mpra_sig <- apply(mpra2, 1, function(row) {
+#  if (row["Skew.logFDR"] > 1) {
+#    if (row["BH"] > j && row["SkewFDR"] > k) {
+#      return("Enhancer_Skew")
+#    } else {
+#      return("nEnhancer_nSkew")
+#    }
+#  } else if (row["BH"] > j && row["SkewFDR"] > k) {
+#    return("Enhancer_nSkew")
+#  }
+#  return("nEnhancer_nSkew")
+# })
+
+#Manually temporarily set these FDRs and adjusted p-values that are NA to -1 for easier TRUE/FALSE testing
+mpra2$SkewFDR[is.na(mpra2$SkewFDR)]<- (-1)
+mpra2$BH[is.na(mpra2$BH)]<- (-1)
+
+#For each variant, assign whether it has no activity (nEnhancer_nSkew), is a pCRE only (Enhancer_nSkew) or emVAR (Enhancer_Skew)
+mpra2$mpra_sig<-"nEnhancer_nSkew"
+for(i in 1:nrow(mpra2)){
+  if(mpra2[i,]$Skew.logFDR>1 & (mpra2[i,]$BH>j & mpra2[i,]$SkewFDR>k) ){
+    mpra2[i,]$mpra_sig<-"Enhancer_Skew"
+  }else if(mpra2[i,]$Skew.logFDR<=1 & (mpra2[i,]$BH>j & mpra2[i,]$SkewFDR>k) ){
+    mpra2[i,]$mpra_sig<-"Enhancer_nSkew"
+  }
+}
+#Set those -1 FDRs and p-values back to NA
+mpra2$SkewFDR[mpra2$SkewFDR<0]<- NA
+mpra2$BH[mpra2$BH<0]<- NA
+
+
+
+###########################################################################
+
+#Set those -1 FDRs and p-values back to NA
+mpra2$SkewFDR[mpra2$SkewFDR<0]<- NA
+mpra2$BH[mpra2$BH<0]<- NA
+   
+#Make into a Granges file
+mpra.se<-makeGRangesFromDataFrame(mpra2,  seqnames = "chr", start.field = "snp_start", end.field = "snp_end",keep.extra.columns=TRUE)
+
+# This code finds where the genomic positions of the MPRA data and DHS peak data overlap
+#Find DHS peaks that overlap with MPRA
+overlap_peaks<-data.frame(subsetByOverlaps(dhs.pos.se, mpra.se, type="any"), stringsAsFactors = F)$peak #Find DHS peaks that overlap with MPRA SNPs
+overlap_index<-which(dhs.pos$peak%in%overlap_peaks) #Extract row indices of overlapping peaks from DHS file
+dhs.pos<-dhs.pos[overlap_index,] #Subset DHS peaks file by index of overlapping peaks
+# This removes the mpra.se and dhs.pos.se objects
+
+# Generate peak indices for MPRA SNPs for faster downstream processing
+# This creates a new dataframe with seqname, start and end 
+dhs.pos<-dhs.merge.dat[,c(1:3)]
+# This creates an index column which are just sequentially numbered (1,2,3 etc.)
+dhs.pos$index<-seq(1:nrow(dhs.pos))
+# This adds the index column to the last data set as well
+dhs.merge.dat$index<-seq(1:nrow(dhs.merge.dat))
+# This creates a column called peak_index to be filled in by the loop
+mpra2$peak_index<-NA
+
+###########################################################################  (NEW APPLY FUNCTION)
+
+# This loop adds a peak_index column to the mpra data 
+for(i in 1:nrow(mpra2)){ #Add in DHS peak index for any peak overlapping MPRA SNP
+  mpra2[i,]$peak_index<-subset(dhs.pos, seqname==mpra2[i,]$chr & start<=mpra2[i,]$snp_end & end >=mpra2[i,]$snp_end)$index[1]  
+}
+
+###########################################################################
+
+# This creates a new dataframe which is the mpra data, but it is subset to only to pCREs and emVars and observations with a peak_index value
+pcre_index<-subset(mpra2, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew") & !is.na(peak_index))$peak_index #peak indices for MPRA pCRE SNPs only
+# This subsets the other observations
+non_pcre_index<-subset(mpra2, mpra_sig=="nEnhancer_nSkew" & !is.na(peak_index))$peak_index #peak indices for MPRA non-pCRE SNPs
+
+# This code creates the sample dataframe which in this case is just CD4. It is originally made with all the biosample names. 
+sample.dat <- data.frame(c("CD4"))
+colnames(sample.dat) <- "sample"
+
+# Calculate enrichments of MPRA pCREs in DHS peaks for each cell type
+
+# This created an empty dataframe to be filled by the loop
+dat.plot<-data.frame(sample= sample.dat$sample, pcre_fold=0, pcre_p=0, stringsAsFactors = F)
+# This loop creates fold enrichment and p-values for the pCREs
+
+########################################################################### (NEW APPLY FUNCTION)
+
+for(i in 1:nrow(dat.plot)){
+  
+  #Find the column in the dhs data that correspond to that cell type
+  cell_col<-which(names(dhs.merge.dat)==dat.plot[i,]$sample)
+  
+  #find which peak_indexes for the peaks in that cell type
+  peak_index<-dhs.merge.dat[dhs.merge.dat[,cell_col]==1,]$index
+
+  #Calculate enrichment
+  a<-length(intersect(peak_index, pcre_index)) #Number of pCRE in DHS peak
+  b<-length(intersect(peak_index, non_pcre_index)) #Number of non-pCRE in DHS peak
+  c<-nrow(subset(mpra2, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew")))-a #Number of pCRE not in DHS
+  d<-nrow(subset(mpra2, mpra_sig=="nEnhancer_nSkew"))-b #Number of non-pCRE not in DHS
+  dat.plot[i,]$pcre_fold<-(a/(a+c))/(b/(b+d)) #Calcualte fold enrichment
+  dat.plot[i,]$pcre_p<-fisher.test(rbind(c(a,b), c(c, d)), alternative="two.sided")$p.value #Calculate p-value
+}
+
+###########################################################################
+
+pcre_p <- dat.plot$pcre_p
+   
+   precision.BH.dat.dhs <- rbind(precision.BH.dat.dhs, data.frame(k, j, pcre_p)) # makes the data frame used for the heat map
+  }
+}
+names(precision.BH.dat.dhs) <- c("FDR", "BH", "pcre_p")
+
+BH_FDR_CD4_DHS_heat_map <- ggplot(data.frame(precision.BH.dat.dhs), aes(x = as.character(FDR), y = as.character(BH), fill = -log10(pcre_p))) +
+  geom_tile() + geom_text(aes(label = round(-log10(pcre_p), digits = 2))) + xlab("Skew FDR") + ylab("BH") + 
+  ggtitle("CD4 DHS enrichment BH heatmap") + scale_fill_gradient(low = "gold", high = "firebrick2") 
+BH_FDR_CD4_DHS_heat_map
+
+#######################################################################
+############
+############
+############
+#######################################################################
+
+# Skew FDR vs. BF heat map  
+BF_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+FDR_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+
+precision.BF.dat.dhs <- NULL
+for(j in BF_seq){
+  for(k in FDR_seq){
+mpra2 <- mpra
+
+mpra2$SkewFDR<- 10^-mpra2$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
+mpra2$Skew<- 2^mpra2$LogSkew # undo the log transformation of logSkew to create a column called skew
+mpra2$BF<- 10^-mpra2$max.logPadj_BF # undo the log transformation of log 2 fold change to create a column called BF
+
+#Manually temporarily set these FDRs and adjusted p-values that are NA to -1 for easier TRUE/FALSE testing
+mpra2$SkewFDR[is.na(mpra2$SkewFDR)]<- (-1)
+mpra2$BF[is.na(mpra2$BF)]<- (-1)
+
+###########################################################################  (NEW APPLY FUNCTION)
+
+#For each variant, assign whether it has no activity (nEnhancer_nSkew), is a pCRE only (Enhancer_nSkew) or emVAR (Enhancer_Skew)
+#mpra2$mpra_sig <- apply(mpra2, 1, function(row) {
+#  if (row["Skew.logFDR"] > 1) {
+#    if (row["BF"] > j && row["SkewFDR"] > k) {
+#      return("Enhancer_Skew")
+#    } else {
+#      return("nEnhancer_nSkew")
+#    }
+#  } else if (row["BF"] > j && row["SkewFDR"] > k) {
+#    return("Enhancer_nSkew")
+#  }
+#  return("nEnhancer_nSkew")
+# })
+
+#Manually temporarily set these FDRs and adjusted p-values that are NA to -1 for easier TRUE/FALSE testing
+mpra2$SkewFDR[is.na(mpra2$SkewFDR)]<- (-1)
+mpra2$BF[is.na(mpra2$BF)]<- (-1)
+
+#For each variant, assign whether it has no activity (nEnhancer_nSkew), is a pCRE only (Enhancer_nSkew) or emVAR (Enhancer_Skew)
+mpra2$mpra_sig<-"nEnhancer_nSkew"
+for(i in 1:nrow(mpra2)){
+  if(mpra2[i,]$Skew.logFDR>1 & (mpra2[i,]$BF>j & mpra2[i,]$SkewFDR>k) ){
+    mpra2[i,]$mpra_sig<-"Enhancer_Skew"
+  }else if(mpra2[i,]$Skew.logFDR<=1 & (mpra2[i,]$BF>j & mpra2[i,]$SkewFDR>k) ){
+    mpra2[i,]$mpra_sig<-"Enhancer_nSkew"
+  }
+}
+#Set those -1 FDRs and p-values back to NA
+mpra2$SkewFDR[mpra2$SkewFDR<0]<- NA
+mpra2$BF[mpra2$BF<0]<- NA
+
+
+
+
+###########################################################################
+
+#Set those -1 FDRs and p-values back to NA
+mpra2$SkewFDR[mpra2$SkewFDR<0]<- NA
+mpra2$BF[mpra2$BF<0]<- NA
+   
+#Make into a Granges file
+mpra.se<-makeGRangesFromDataFrame(mpra2,  seqnames = "chr", start.field = "snp_start", end.field = "snp_end",keep.extra.columns=TRUE)
+
+# This code finds where the genomic positions of the MPRA data and DHS peak data overlap
+#Find DHS peaks that overlap with MPRA
+overlap_peaks<-data.frame(subsetByOverlaps(dhs.pos.se, mpra.se, type="any"), stringsAsFactors = F)$peak #Find DHS peaks that overlap with MPRA SNPs
+overlap_index<-which(dhs.pos$peak%in%overlap_peaks) #Extract row indices of overlapping peaks from DHS file
+dhs.pos<-dhs.pos[overlap_index,] #Subset DHS peaks file by index of overlapping peaks
+# This removes the mpra.se and dhs.pos.se objects
+
+# Generate peak indices for MPRA SNPs for faster downstream processing
+# This creates a new dataframe with seqname, start and end 
+dhs.pos<-dhs.merge.dat[,c(1:3)]
+# This creates an index column which are just sequentially numbered (1,2,3 etc.)
+dhs.pos$index<-seq(1:nrow(dhs.pos))
+# This adds the index column to the last data set as well
+dhs.merge.dat$index<-seq(1:nrow(dhs.merge.dat))
+# This creates a column called peak_index to be filled in by the loop
+mpra2$peak_index<-NA
+
+###########################################################################  (NEW APPLY FUNCTION)
+
+# This loop adds a peak_index column to the mpra data 
+for(i in 1:nrow(mpra2)){ #Add in DHS peak index for any peak overlapping MPRA SNP
+  mpra2[i,]$peak_index<-subset(dhs.pos, seqname==mpra2[i,]$chr & start<=mpra2[i,]$snp_end & end >=mpra2[i,]$snp_end)$index[1]  
+}
+
+###########################################################################
+
+# This creates a new dataframe which is the mpra data, but it is subset to only to pCREs and emVars and observations with a peak_index value
+pcre_index<-subset(mpra2, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew") & !is.na(peak_index))$peak_index #peak indices for MPRA pCRE SNPs only
+# This subsets the other observations
+non_pcre_index<-subset(mpra2, mpra_sig=="nEnhancer_nSkew" & !is.na(peak_index))$peak_index #peak indices for MPRA non-pCRE SNPs
+
+# This code creates the sample dataframe which in this case is just CD4. It is originally made with all the biosample names. 
+sample.dat <- data.frame(c("CD4"))
+colnames(sample.dat) <- "sample"
+
+# Calculate enrichments of MPRA pCREs in DHS peaks for each cell type
+
+# This created an empty dataframe to be filled by the loop
+dat.plot<-data.frame(sample= sample.dat$sample, pcre_fold=0, pcre_p=0, stringsAsFactors = F)
+# This loop creates fold enrichment and p-values for the pCREs
+
+########################################################################### (NEW APPLY FUNCTION)
+
+for(i in 1:nrow(dat.plot)){
+  
+  #Find the column in the dhs data that correspond to that cell type
+  cell_col<-which(names(dhs.merge.dat)==dat.plot[i,]$sample)
+  
+  #find which peak_indexes for the peaks in that cell type
+  peak_index<-dhs.merge.dat[dhs.merge.dat[,cell_col]==1,]$index
+
+  #Calculate enrichment
+  a<-length(intersect(peak_index, pcre_index)) #Number of pCRE in DHS peak
+  b<-length(intersect(peak_index, non_pcre_index)) #Number of non-pCRE in DHS peak
+  c<-nrow(subset(mpra2, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew")))-a #Number of pCRE not in DHS
+  d<-nrow(subset(mpra2, mpra_sig=="nEnhancer_nSkew"))-b #Number of non-pCRE not in DHS
+  dat.plot[i,]$pcre_fold<-(a/(a+c))/(b/(b+d)) #Calcualte fold enrichment
+  dat.plot[i,]$pcre_p<-fisher.test(rbind(c(a,b), c(c, d)), alternative="two.sided")$p.value #Calculate p-value
+}
+
+###########################################################################
+
+pcre_p <- dat.plot$pcre_p
+   
+   precision.BF.dat.dhs <- rbind(precision.BF.dat.dhs, data.frame(k, j, pcre_p)) # makes the data frame used for the heat map
+  }
+}
+names(precision.BF.dat.dhs) <- c("FDR", "BF", "pcre_p")
+
+BF_FDR_CD4_DHS_heat_map <- ggplot(data.frame(precision.BF.dat.dhs), aes(x = as.character(FDR), y = as.character(BF), fill = -log10(pcre_p))) +
+  geom_tile() + geom_text(aes(label = round(-log10(pcre_p), digits = 2))) + xlab("Skew FDR") + ylab("BF") + 
+  ggtitle("CD4 DHS enrichment BF heatmap") + scale_fill_gradient(low = "gold", high = "firebrick2") 
+BF_FDR_CD4_DHS_heat_map
+
+```
+
+```{r, eval=FALSE, echo=FALSE}
+# Save the plots
+ggsave("Skew_FDR_CD4_DHS_heat_map.png",plot = Skew_FDR_CD4_DHS_heat_map, path = "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/plots", width = 8, height = 6)
+ggsave("FC_FDR_CD4_DHS_heat_map.png",plot = FC_FDR_CD4_DHS_heat_map, path = "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/plots", width = 8, height = 6)
+ggsave("BH_FDR_CD4_DHS_heat_map.png",plot = BH_FDR_CD4_DHS_heat_map, path = "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/plots", width = 8, height = 6)
+ggsave("BF_FDR_CD4_DHS_heat_map.png",plot = BF_FDR_CD4_DHS_heat_map, path = "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/plots", width = 8, height = 6)
+```
+
+
+![*Skew FDR CD4 DHS enrichment heat map*](/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/plots/Skew_FDR_CD4_DHS_heat_map.png){width=px}
+![*FC FDR CD4 DHS enrichment heat map*](/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/plots/FC_FDR_CD4_DHS_heat_map.png){width=px}
+
+![*BH FDR CD4 DHS enrichment heat map*](/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/plots/BH_FDR_CD4_DHS_heat_map.png){width=px}
+
+![*BF FDR CD4 DHS enrichment heat map*](/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/plots/BF_FDR_CD4_DHS_heat_map.png){width=px}
+
+
