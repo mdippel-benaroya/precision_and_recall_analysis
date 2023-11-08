@@ -12,9 +12,11 @@ This version will use pcre_p for DHS as the fill instead of precision and recall
 
 ```{r, echo=FALSE, message=FALSE}
 # loading packages
+install.packages("tidyverse")
 library(tidyverse)
 library(RColorBrewer)
 library(rmarkdown)
+BiocManager::install("GenomicRanges")
 library(GenomicRanges)
 ```
 
@@ -198,6 +200,26 @@ Give MPRA a strand column
 ```{r, eval=FALSE}
 mpra$strand<-"+"
 ```
+
+```{r}
+#Manually temporarily set these FDRs and adjusted p-values that are NA to -1 for easier TRUE/FALSE testing
+mpra$Skew.logFDR[is.na(mpra$Skew.logFDR)]<- (-1)
+mpra$max.logPadj_BH[is.na(mpra$max.logPadj_BH)]<- (-1)
+
+#For each variant, assign whether it has no activity (nEnhancer_nSkew), is a pCRE only (Enhancer_nSkew) or emVAR (Enhancer_Skew)
+mpra$mpra_sig<-"nEnhancer_nSkew"
+for(i in 1:nrow(mpra)){
+  if(mpra[i,]$Skew.logFDR>1 & (mpra[i,]$max.logPadj_BH>2 & mpra[i,]$max_abs_fc>1) ){
+    mpra[i,]$mpra_sig<-"Enhancer_Skew"
+  }else if(mpra[i,]$Skew.logFDR<=1 & (mpra[i,]$max.logPadj_BH>2 & mpra[i,]$max_abs_fc>1) ){
+    mpra[i,]$mpra_sig<-"Enhancer_nSkew"
+  }
+}
+#Set those -1 FDRs and p-values back to NA
+mpra$Skew.logFDR[mpra$Skew.logFDR<0]<- NA
+mpra$max.logPadj_BH[mpra$max.logPadj_BH<0]<- NA
+```
+
 
 
 ```{r, eval=FALSE, echo=FALSE}
