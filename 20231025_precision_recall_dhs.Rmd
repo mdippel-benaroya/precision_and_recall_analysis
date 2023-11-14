@@ -12,11 +12,9 @@ This version will use pcre_p for DHS as the fill instead of precision and recall
 
 ```{r, echo=FALSE, message=FALSE}
 # loading packages
-install.packages("tidyverse")
 library(tidyverse)
 library(RColorBrewer)
 library(rmarkdown)
-BiocManager::install("GenomicRanges")
 library(GenomicRanges)
 ```
 
@@ -220,9 +218,9 @@ mpra$Skew.logFDR[mpra$Skew.logFDR<0]<- NA
 mpra$max.logPadj_BH[mpra$max.logPadj_BH<0]<- NA
 ```
 
-
-
+original loop
 ```{r, eval=FALSE, echo=FALSE}
+
 # This is code which gets a single p-value for CD4 cells based on dhs.pos and the MPRA mpra_sig categories
 # The loop I create will vary the specifications for variant categories 
 #Make into a Granges file
@@ -247,8 +245,86 @@ dhs.merge.dat$index<-seq(1:nrow(dhs.merge.dat))
 mpra$peak_index<-NA
 # This loop adds a peak_index column to the mpra data
 for(i in 1:nrow(mpra)){ #Add in DHS peak index for any peak overlapping MPRA SNP
-  mpra[i,]$peak_index<-subset(dhs.pos, seqname==mpra[i,]$chr & start<=mpra[i,]$snp_end & end >=mpra[i,]$snp_end)$index[1]  
+ mpra[i,]$peak_index<-subset(dhs.pos, seqname==mpra[i,]$chr & start<=mpra[i,]$snp_end & end >=mpra[i,]$snp_end)$index[1]  
+ }
+# 230 seconds for this loop
+# This creates a new dataframe which is the mpra data, but it is subset to only to pCREs and emVars and observations with a peak_index value
+pcre_index<-subset(mpra, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew") & !is.na(peak_index))$peak_index #peak indices for MPRA pCRE SNPs only
+# This subsets the other observations
+non_pcre_index<-subset(mpra, mpra_sig=="nEnhancer_nSkew" & !is.na(peak_index))$peak_index #peak indices for MPRA non-pCRE SNPs
+
+# This code creates the sample dataframe which in this case is just CD4. It is originally made with all the biosample names. 
+sample.dat <- data.frame(c("CD4"))
+colnames(sample.dat) <- "sample"
+
+# Calculate enrichments of MPRA pCREs in DHS peaks for each cell type
+
+# This created an empty dataframe to be filled by the loop
+dat.plot<-data.frame(sample= sample.dat$sample, pcre_fold=0, pcre_p=0, stringsAsFactors = F)
+# This loop creates fold enrichment and p-values for the pCREs
+for(i in 1:nrow(dat.plot)){
+  
+  #Find the column in the dhs data that correspond to that cell type
+  cell_col<-which(names(dhs.merge.dat)==dat.plot[i,]$sample)
+  
+  #find which peak_indexes for the peaks in that cell type
+  peak_index<-dhs.merge.dat[dhs.merge.dat[,cell_col]==1,]$index
+
+  #Calculate enrichment
+  a<-length(intersect(peak_index, pcre_index)) #Number of pCRE in DHS peak
+  b<-length(intersect(peak_index, non_pcre_index)) #Number of non-pCRE in DHS peak
+  c<-nrow(subset(mpra, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew")))-a #Number of pCRE not in DHS
+  d<-nrow(subset(mpra, mpra_sig=="nEnhancer_nSkew"))-b #Number of non-pCRE not in DHS
+  dat.plot[i,]$pcre_fold<-(a/(a+c))/(b/(b+d)) #Calcualte fold enrichment
+  dat.plot[i,]$pcre_p<-fisher.test(rbind(c(a,b), c(c, d)), alternative="two.sided")$p.value #Calculate p-value
 }
+dat.plot$pcre_p
+
+```
+
+improved loop
+```{r, eval=FALSE, echo=FALSE}
+# This is code which gets a single p-value for CD4 cells based on dhs.pos and the MPRA mpra_sig categories
+# The loop I create will vary the specifications for variant categories 
+#Make into a Granges file
+mpra$strand<-"+"
+mpra.se<-makeGRangesFromDataFrame(mpra,  seqnames = "chr", start.field = "snp_start", end.field = "snp_end",keep.extra.columns=TRUE)
+
+# This code finds where the genomic positions of the MPRA data and DHS peak data overlap
+#Find DHS peaks that overlap with MPRA
+overlap_peaks<-data.frame(subsetByOverlaps(dhs.pos.se, mpra.se, type="any"), stringsAsFactors = F)$peak #Find DHS peaks that overlap with MPRA SNPs
+overlap_index<-which(dhs.pos$peak%in%overlap_peaks) #Extract row indices of overlapping peaks from DHS file
+dhs.pos<-dhs.pos[overlap_index,] #Subset DHS peaks file by index of overlapping peaks
+# This removes the mpra.se and dhs.pos.se objects
+
+# Generate peak indices for MPRA SNPs for faster downstream processing
+# This creates a new dataframe with seqname, start and end 
+dhs.pos<-dhs.merge.dat[,c(1:3)]
+# This creates an index column which are just sequentially numbered (1,2,3 etc.)
+dhs.pos$index<-seq(1:nrow(dhs.pos))
+# This adds the index column to the last data set as well
+dhs.merge.dat$index<-seq(1:nrow(dhs.merge.dat))
+# This creates a column called peak_index to be filled in by the loop
+mpra$peak_index<-NA
+# This loop adds a peak_index column to the mpra data
+#for(i in 1:nrow(mpra)){ #Add in DHS peak index for any peak overlapping MPRA SNP
+#  mpra[i,]$peak_index<-subset(dhs.pos, seqname==mpra[i,]$chr & start<=mpra[i,]$snp_end & end >=mpra[i,]$snp_end)$index[1]  
+#  }
+
+# Assuming mpra is your data frame
+# Create a function to find the peak index for a single row
+find_peak_index <- function(row) {
+  dhs_subset <- subset(dhs.pos, seqname == row$chr & start <= row$snp_end & end >= row$snp_end)
+  if (nrow(dhs_subset) > 0) {
+    return(dhs_subset$index[1])
+  } else {
+    return(NA)  # No matching DHS peak found
+  }
+}
+
+# Apply the function to each row of mpra
+mpra$peak_index <- sapply(1:nrow(mpra), function(i) find_peak_index(mpra[i, ]))
+
 # This creates a new dataframe which is the mpra data, but it is subset to only to pCREs and emVars and observations with a peak_index value
 pcre_index<-subset(mpra, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew") & !is.na(peak_index))$peak_index #peak indices for MPRA pCRE SNPs only
 # This subsets the other observations
@@ -330,10 +406,20 @@ dhs.pos$index<-seq(1:nrow(dhs.pos))
 dhs.merge.dat$index<-seq(1:nrow(dhs.merge.dat))
 # This creates a column called peak_index to be filled in by the loop
 mpra2$peak_index<-NA
-# This loop adds a peak_index column to the mpra data
-for(i in 1:nrow(mpra2)){ #Add in DHS peak index for any peak overlapping MPRA SNP
-  mpra2[i,]$peak_index<-subset(dhs.pos, seqname==mpra2[i,]$chr & start<=mpra2[i,]$snp_end & end >=mpra2[i,]$snp_end)$index[1]  
+
+# Create a function to find the peak index for a single row
+find_peak_index <- function(row) {
+  dhs_subset <- subset(dhs.pos, seqname == row$chr & start <= row$snp_end & end >= row$snp_end)
+  if (nrow(dhs_subset) > 0) {
+    return(dhs_subset$index[1])
+  } else {
+    return(NA)  # No matching DHS peak found
+  }
 }
+
+# Apply the function to each row of mpra
+mpra2$peak_index <- sapply(1:nrow(mpra2), function(i) find_peak_index(mpra2[i, ]))
+
 # This creates a new dataframe which is the mpra data, but it is subset to only to pCREs and emVars and observations with a peak_index value
 pcre_index<-subset(mpra2, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew") & !is.na(peak_index))$peak_index #peak indices for MPRA pCRE SNPs only
 # This subsets the other observations
