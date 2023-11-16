@@ -6,7 +6,7 @@ date: "2023-11-13"
 
 # Introduction
 
-This HTML will show precison, recall and risk ratio plots for the Open Targets finemapping. The OI
+This HTML will show precision, recall and risk ratio plots for the Open Targets fine-mapping. Also there are precision, recall and risk ratio heat maps for DHS peaks. 
 
 ```{r setup, include=FALSE, warning=FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -16,17 +16,81 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(dplyr)
 library(ggplot2)
+library(tidyverse)
+library(RColorBrewer)
+library(rmarkdown)
 ```
 
 
 Load open targets fine mapping data
 ```{r load OT FM, echo=FALSE}
 open_target_finemapping <- read.table("/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/Chromosome_19_to_38/data/open_target_finemapping.txt", sep="\t", header=T)
-test_fm <- subset(open_target_finemapping, Dermatologic_disease=="Dermatologic_disease", select=c("postprob","fm_trait","Dermatologic_disease","Dermatologic_disease_pp"))
+# test_fm <- subset(open_target_finemapping, Dermatologic_disease=="Dermatologic_disease", select=c("postprob","fm_trait","Dermatologic_disease","Dermatologic_disease_pp"))
 ```
 
-```{r load MPRA, echo=FALSE}
-mpra <- read.table("/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/Chromosome_19_to_38/data/20230825_mpra_merge_Tcell_glm_john_temporary_38.txt", sep="\t", header=T)
+# html version
+
+This is the place in the html you can tell which mpra data set and specific filters are being used. In the Rmd there are multiple options and you need to delete ", eval=FALSE, echo=FALSE" from the R chunk you want to use. This will make that R chunk be used in the making of the html and display that code chunk in the html. To create the html with the correct mpra loading code chunk, you need to do to run the render chunk which is directly below it. Keep the render chunk " eval=FALSE, Echo=FALSE" so it does not appear in the html. 
+
+```{r, eval=FALSE, echo=FALSE}
+# This html version uses the mpra data from 20230825_mpra_merge_Tcell_glm_john
+# This html version has no filter 
+mpra.dir <- "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/Chromosome_19_to_38/data/20230825_mpra_merge_Tcell_glm_john_temporary_38.txt"
+  # "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/data/20230825_mpra_merge_Tcell_glm_john_temporary_38.txt"
+mpra <- read.table(mpra.dir, sep="\t", header=T)
+mpra_name <- "20230825_mpra_merge_Tcell_glm_john"
+filter <- "none"
+```
+
+```{r, eval=FALSE, echo=FALSE}
+# These are the different options for saving the html. They depend on the values mpra_name and filter.
+# This is going to be the default 
+if(filter == "none" & mpra_name == "20230825_mpra_merge_Tcell_glm_john"){
+  render("20231113_OT_FM_precision_recall.Rmd",output_file = paste0(mpra_name, "_OT_finemapping_DHS_precision_recall",".html"))
+}
+```
+
+```{r}
+# This html version uses the mpra data from 20230518_unstimulated_jurkat_glm
+# This html version has no filter 
+mpra.dir <- "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/Chromosome_19_to_38/data/20230518_jurkat_glm_mpra_merge_temporary_38.txt"
+mpra <- read.table(mpra.dir, sep="\t", header=T)
+# mpra <- subset(mpra, !is.na(A.log2FC) | !is.na(B.log2FC) | !is.na(A.logPadj_BH) | !is.na(B.logPadj_BH) | !is.na(A.logPadj_BF) | !is.na(B.logPadj_BF))
+mpra$A.log2FC[is.na(mpra$A.log2FC)]<- (0)
+mpra$B.log2FC[is.na(mpra$B.log2FC)]<- (0)
+mpra$A.logPadj_BH[is.na(mpra$A.logPadj_BH)]<- (0)
+mpra$B.logPadj_BH[is.na(mpra$B.logPadj_BH)]<- (0)
+mpra$A.logPadj_BF[is.na(mpra$A.logPadj_BF)]<- (0)
+mpra$B.logPadj_BF[is.na(mpra$B.logPadj_BF)]<- (0)
+mpra$dhs <- mpra$dhs_Tcell_merged
+mpra_name <- "20230518_unstimulated_jurkat_glm"
+filter <- "none"
+
+```
+
+```{r, eval=FALSE, echo=FALSE}
+# These are the different options for saving the html. They depend on the values mpra_name and filter.
+if(filter == "none" & mpra_name == "20230518_unstimulated_jurkat_glm"){
+  render("20231113_OT_FM_precision_recall.Rmd",output_file = paste0(mpra_name, "OT_finemapping_DHS_precision_recall",".html"))
+}
+```
+
+
+```{r, eval=FALSE, echo=FALSE}
+# This html version uses the mpra data from 20230518_GM12878_emVAR_glm_mpra_merge.txt
+# This html version has no filter
+mpra.dir <- "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/Chromosome_19_to_38/data/20230518_GM12878_emVAR_glm_mpra_merge_temporary_38.txt"
+mpra <- read.table(mpra.dir, sep="\t", header=T)
+mpra_name <- "20230518_GM12878_emVAR_glm"
+filter <- "none"
+```
+
+```{r, eval=FALSE, echo=FALSE}
+# These are the different options for saving the html. They depend on the values mpra_name and filter.
+# This is going to be the default 
+if(filter == "none" & mpra_name == "20230518_GM12878_emVAR_glm"){
+  render("20231113_OT_FM_precision_recall.Rmd",output_file = paste0(mpra_name, "OT_finemapping_DHS_precision_recall",".html"))
+}
 ```
 
 # Special Columns 
@@ -85,7 +149,10 @@ mpra_fm <- merge(mpra, open_target_finemapping, by="SNP38")
 This runs an apply fucntion to find the top postprob and its associated trait
 ```{r top postprob}
 # Index of the postprob columns
-index = 163:237 
+last <- ncol(mpra_fm)
+first <- last - 74
+index <- first:last
+# index = 163:237 
 top_postprob <- apply(mpra_fm[,index], 1, max, na.rm = TRUE)
 top_trait <- colnames(mpra_fm[,index])[apply(mpra_fm[,index], 1, which.max)]
 top_vals <- data.frame(top_postprob, top_trait)
@@ -94,196 +161,190 @@ mpra_fm2 <- data.frame(mpra_fm, top_vals)
 
 # Precision and recall plots with open targets finemapping! 
 
-True Positive: 
-
-False Positive:
-
-False Negative:
-
-True Negative: 
+ 
+```{r John causal variants, eval=FALSE, echo=FALSE}
+# Johns trying to figure out how many unique likely causal variants there are
+nrow(mpra_fm2 %>% subset(top_postprob>0.5))
+head(unique(mpra_fm2[mpra_fm2$top_postprob>0.5,]$SNP38))
+```
 
 ```{r skew heatmaps}
-skew_seq <-c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
-FDR_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+skew_seq <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.75, 1)
+# FDR_seq <- c(0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.75, 1, 1.25, 1.5)
+FDR_seq <-c(0.01, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
 precision.skew.dat <- NULL
 for( i in FDR_seq){
   for(j in skew_seq){
    mpra_subset <- subset(mpra_fm2, select=c(Skew.logFDR,LogSkew,max_abs_fc,max.logPadj_BH,max.logPadj_BF,top_postprob)) # subset the mpra to only the columns we want. 
    all_true <- nrow(subset(mpra_subset, top_postprob>=0.5)) #all true in that they are all likely causal according to statistical fine-mapping. This measurement is the true positives and false negatives (which are truely positive). All true goes into the denominator of precision. 
-   mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
-   mpra_subset$Skew<- 2^mpra_subset$LogSkew # undo the log transformation of logSkew to create a column called skew
-   true_positive <- nrow(subset(mpra_subset, SkewFDR <= i & Skew >= j & top_postprob>=0.5)) # This variable are the true positives (TP). They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. This is variable A in the risk ratio calculation. 
-   false_positive <- nrow(subset(mpra_subset, SkewFDR <= i & Skew >= j & top_postprob<=0.01)) # This variable is false positives (FP). They are the non-Emvars which meet the specific requirements of the skew and SkewFDR and have the poor pics values. This is part of the denominator in precision.This is variable B in the risk ratio calculation (except that we are using the top_postprob <= 0.5)
-      false_negative <- nrow(subset(mpra_subset, SkewFDR > i & Skew < j & top_postprob>=0.5)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
-      true_negative <- nrow(subset(mpra_subset, SkewFDR > i & Skew < j & top_postprob<=0.01)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the top_postprob <= 0.5)
+  # mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
+  # mpra_subset$Skew<- 2^mpra_subset$LogSkew # undo the log transformation of logSkew to create a column called skew
+   true_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & LogSkew >= j & top_postprob>=0.5)) # This variable are the true positives (TP). They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. This is variable A in the risk ratio calculation. 
+   false_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & LogSkew >= j & top_postprob<=0.01)) # This variable is false positives (FP). They are the non-Emvars which meet the specific requirements of the LogSkew and Skew.logFDR and have the poor pics values. This is part of the denominator in precision.This is variable B in the risk ratio calculation (except that we are using the top_postprob <= 0.5)
+      false_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & LogSkew < j & top_postprob>=0.5)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
+      true_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & LogSkew < j & top_postprob<=0.01)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the top_postprob <= 0.5)
       A <- true_positive
-      B <- nrow(subset(mpra_subset, SkewFDR <= i & Skew >= j & top_postprob<=0.5))
+      B <- false_positive
       C <- false_negative
-      D <- nrow(subset(mpra_subset, SkewFDR > i & Skew < j & top_postprob<=0.5))
+      D <- true_negative
          risk_ratio <- ((A)/(A+B)) / ((C)/((C+D))) # This is the risk ratio which is calculated as (TP / (TP + FP)) / (FN / (FN+TN)). Risk ratio is INF when False Negative is 0. Risk ratio is blank False Negative and True Negative are 0.
    precision <- true_positive/(true_positive+false_positive) # Precision is calculated by True Positives / (True Positives + False Positives). 
    recall <- true_positive/all_true # Recall is calculated as True Positives / (True Positives + False Negatives). All True is True Positives + False Negatives (which are actually true)
    precision.skew.dat <- rbind(precision.skew.dat, data.frame(i, j, precision, recall, all_true, true_positive, false_positive, false_negative, true_negative, risk_ratio,A, B, C, D)) # makes the dataframe used for the heat map
   }
 }
-names(precision.skew.dat) <- c("FDR", "Skew", "precision", "recall", "all_true", "true_positive", "false_positive", "false_negative", "true_negative", "risk_ratio","A", "B","C", "D")
+names(precision.skew.dat) <- c("FDR", "LogSkew", "precision", "recall", "all_true", "true_positive", "false_positive", "false_negative", "true_negative", "risk_ratio","A", "B","C", "D")
 
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = precision)) +
-  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("Precision heatmap for Skew") + scale_fill_gradient(low = "gold", high = "firebrick2") 
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = recall)) +
-  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("Recall heatmap for Skew") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = risk_ratio)) +
-  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("Risk Ratio heatmap for Skew") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = precision)) +
+  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("Precision heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2") 
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = recall)) +
+  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("Recall heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = risk_ratio)) +
+  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("Risk Ratio heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
 # Risk ratio is blank or INF when False Negative is 0
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = true_positive)) +
-  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("True Positive heatmap for Skew") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = false_positive)) +
-  geom_tile() + geom_text(aes(label = round(false_positive, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("False Positive heatmap for Skew (FM <= 0.01)") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = B)) +
-  geom_tile() + geom_text(aes(label = round(B, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("False Positive heatmap for Skew (FM <= 0.5)") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = all_true)) +
-  geom_tile() + geom_text(aes(label = round(all_true, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("All True heatmap for Skew") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = false_negative)) +
-  geom_tile() + geom_text(aes(label = round(false_negative, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("False Negative heatmap for Skew") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = true_negative)) +
-  geom_tile() + geom_text(aes(label = round(true_negative, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("True Negative heatmap for Skew (FM <= 0.01)") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = D)) +
-  geom_tile() + geom_text(aes(label = round(D, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("True Negative heatmap for Skew (FM <= 0.5)") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = true_positive)) +
+  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("True Positive heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = false_positive)) +
+  geom_tile() + geom_text(aes(label = round(false_positive, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("False Positive heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = all_true)) +
+  geom_tile() + geom_text(aes(label = round(all_true, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("All True heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = false_negative)) +
+  geom_tile() + geom_text(aes(label = round(false_negative, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("False Negative heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = true_negative)) +
+  geom_tile() + geom_text(aes(label = round(true_negative, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("True Negative heatmap for LogSkew (FM <= 0.01)") + scale_fill_gradient(low = "gold", high = "firebrick2")
 ```
 
 
 
 ```{r FC heat maps}
-skew_seq <-c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3, 4, 5, 6, 7, 8)
-FDR_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+FC_seq <-c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2)
+FDR_seq <-c(0.01, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
 precision.FC.dat <- NULL
 for( i in FDR_seq){
-  for(j in skew_seq){
+  for(j in FC_seq){
    mpra_subset <- subset(mpra_fm2, select=c(Skew.logFDR,LogSkew,max_abs_fc,max.logPadj_BH,max.logPadj_BF,top_postprob)) # subset the mpra to only the columns we want. 
    all_true <- nrow(subset(mpra_subset, top_postprob>=0.5)) #all true in that they are all likely causal according to statistical fine-mapping. This measurement is the true positives and false negatives (which are truely positive). All true goes into the denominator of precision. 
-   mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
-   mpra_subset$FC<- 2^mpra_subset$max_abs_fc # undo the log transformation of log 2 fold change to create a column called FC
-   true_positive <- nrow(subset(mpra_subset, SkewFDR <= i & FC >= j & top_postprob>=0.5)) # This variable are the true positives. They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. 
-   false_positive <- nrow(subset(mpra_subset, SkewFDR <= i & FC >= j & top_postprob<=0.01)) # This variable is false positives. They are the non-Emvars which meet the specific requirements of the FC and SkewFDR and have the poor pics values. This is part of the denominator in precision. 
-    false_negative <- nrow(subset(mpra_subset, SkewFDR > i & FC < j & top_postprob>=0.5)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
-    true_negative <- nrow(subset(mpra_subset, SkewFDR > i & FC < j & top_postprob<=0.01)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the top_postprob <= 0.5)
+  # mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
+  # mpra_subset$FC<- 2^mpra_subset$max_abs_fc # undo the log transformation of log 2 fold change to create a column called FC
+   true_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & max_abs_fc >= j & top_postprob>=0.5)) # This variable are the true positives. They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. 
+   false_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & max_abs_fc >= j & top_postprob<=0.01)) # This variable is false positives. They are the non-Emvars which meet the specific requirements of the max_abs_fc and Skew.logFDR and have the poor pics values. This is part of the denominator in precision. 
+    false_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & max_abs_fc < j & top_postprob>=0.5)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
+    true_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & max_abs_fc < j & top_postprob<=0.01)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the top_postprob <= 0.5)
       A <- true_positive
-      B <- nrow(subset(mpra_subset, SkewFDR <= i & FC >= j & top_postprob<=0.5))
+      B <- false_positive
       C <- false_negative
-      D <- nrow(subset(mpra_subset, SkewFDR > i & FC < j & top_postprob<=0.5))
+      D <- true_negative
          risk_ratio <- ((A)/(A+B)) / ((C)/((C+D))) # This is the risk ratio which is calculated as (TP / (TP + FP)) / (FN / (FN+TN)). Risk ratio is INF when False Negative is 0. Risk ratio is blank False Negative and True Negative are 0.
    precision <- true_positive/(true_positive+false_positive) # Precision is calculated by True Positives / (True Positives + False Positives). 
    recall <- true_positive/all_true # Recall is calculated as True Positives / (True Positives + False Negatives). All True is True Positives + False Negatives (which are actually true)
    precision.FC.dat <- rbind(precision.FC.dat, data.frame(i, j, precision, recall, all_true, true_positive, false_positive, risk_ratio)) # makes the dataframe used for the heat map
   }
 }
-names(precision.FC.dat) <- c("FDR", "FC", "precision", "recall", "all_true", "true_positive", "false_positive", "risk_ratio")
+names(precision.FC.dat) <- c("FDR", "max_abs_fc", "precision", "recall", "all_true", "true_positive", "false_positive", "risk_ratio")
 
-ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(FC), fill = precision)) +
-  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("Skew FDR p-value") + ylab("FC") + 
-  ggtitle("Precision heatmap for FC") + scale_fill_gradient(low = "gold", high = "firebrick2") 
-ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(FC), fill = recall)) +
-  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("Skew FDR p-value") + ylab("FC") + 
-  ggtitle("Recall heatmap for FC") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(FC), fill = risk_ratio)) +
-  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("Skew FDR p-value") + ylab("FC") + 
-  ggtitle("Risk Ratio heatmap for FC") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(FC), fill = true_positive)) +
-  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("Skew FDR p-value") + ylab("FC") + 
-  ggtitle("True Positive heatmap for FC") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(max_abs_fc), fill = precision)) +
+  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("-log Skew FDR") + ylab("max_abs_fc") + 
+  ggtitle("Precision heatmap for max_abs_fc") + scale_fill_gradient(low = "gold", high = "firebrick2") 
+ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(max_abs_fc), fill = recall)) +
+  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("-log Skew FDR") + ylab("max_abs_fc") + 
+  ggtitle("Recall heatmap for max_abs_fc") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(max_abs_fc), fill = risk_ratio)) +
+  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("-log Skew FDR") + ylab("max_abs_fc") + 
+  ggtitle("Risk Ratio heatmap for max_abs_fc") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(max_abs_fc), fill = true_positive)) +
+  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("-log Skew FDR") + ylab("max_abs_fc") + 
+  ggtitle("True Positive heatmap for max_abs_fc") + scale_fill_gradient(low = "gold", high = "firebrick2")
 ```
 
 
 ```{r BH heatmap}
-BH_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
-FDR_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+BH_seq <- c(0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5)
+FDR_seq <-c(0.01, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
 precision.BH.dat <- NULL
 for( i in FDR_seq){
   for(j in BH_seq){
    mpra_subset <- subset(mpra_fm2, select=c(Skew.logFDR,LogSkew,max_abs_fc,max.logPadj_BH,max.logPadj_BF,top_postprob)) # subset the mpra to only the columns we want. 
    all_true <- nrow(subset(mpra_subset, top_postprob>=0.5)) #all true in that they are all likely causal according to statistical fine-mapping. This measurement is the true positives and false negatives (which are truely positive). All true goes into the denominator of precision. 
-   mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
-   mpra_subset$BH<- 10^-mpra_subset$max.logPadj_BH # undo the log transformation of log 2 fold change to create a column called BH
-   true_positive <- nrow(subset(mpra_subset, SkewFDR <= i & BH <= j & top_postprob>=0.5)) # This variable are the true positives. They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. 
-   false_positive <- nrow(subset(mpra_subset, SkewFDR <= i & BH <= j & top_postprob<=0.01)) # This variable is false positives. They are the non-Emvars which meet the specific requirements of the BH and SkewFDR and have the poor pics values. This is part of the denominator in precision.  
-    false_negative <- nrow(subset(mpra_subset, SkewFDR > i & BH > j & top_postprob>=0.5)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
-    true_negative <- nrow(subset(mpra_subset, SkewFDR > i & BH > j & top_postprob<=0.01)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the top_postprob <= 0.5 for risk ratio)
+   # mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
+   # mpra_subset$BH<- 10^-mpra_subset$max.logPadj_BH # undo the log transformation of log 2 fold change to create a column called BH
+   true_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & max.logPadj_BH >= j & top_postprob>=0.5)) # This variable are the true positives. They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. 
+   false_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & max.logPadj_BH >= j & top_postprob<=0.01)) # This variable is false positives. They are the non-Emvars which meet the specific requirements of the max.logPadj_BH and Skew.logFDR and have the poor pics values. This is part of the denominator in precision.  
+    false_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & max.logPadj_BH < j & top_postprob>=0.5)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
+    true_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & max.logPadj_BH < j & top_postprob<=0.01)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the top_postprob <= 0.5 for risk ratio)
       A <- true_positive
-      B <- nrow(subset(mpra_subset, SkewFDR <= i & BH >= j & top_postprob<=0.5))
+      B <- false_positive
       C <- false_negative
-      D <- nrow(subset(mpra_subset, SkewFDR > i & BH < j & top_postprob<=0.5))
+      D <- true_negative
          risk_ratio <- ((A)/(A+B)) / ((C)/((C+D))) # This is the risk ratio which is calculated as (TP / (TP + FP)) / (FN / (FN+TN)). Risk ratio is INF when False Negative is 0. Risk ratio is blank False Negative and True Negative are 0. 
    precision <- true_positive/(true_positive+false_positive) # Precision is calculated by True Positives / (True Positives + False Positives). 
    recall <- true_positive/all_true # Recall is calculated as True Positives / (True Positives + False Negatives). All True is True Positives + False Negatives (which are actually true)
    precision.BH.dat <- rbind(precision.BH.dat, data.frame(i, j, precision, recall, all_true, true_positive, false_positive, risk_ratio)) # makes the dataframe used for the heat map
   }
 }
-names(precision.BH.dat) <- c("FDR", "BH", "precision", "recall", "all_true", "true_positive", "false_positive", "risk_ratio")
+names(precision.BH.dat) <- c("FDR", "max.logPadj_BH", "precision", "recall", "all_true", "true_positive", "false_positive", "risk_ratio")
 
-ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(BH), fill = precision)) +
-  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("Skew FDR p-value") + ylab("BH") + 
-  ggtitle("Precision heatmap for BH") + scale_fill_gradient(low = "gold", high = "firebrick2") 
-ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(BH), fill = recall)) +
-  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("Skew FDR p-value") + ylab("BH") + 
-  ggtitle("Recall heatmap for BH") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(BH), fill = risk_ratio)) +
-  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("Skew FDR p-value") + ylab("BH") + 
-  ggtitle("Risk Ratio heatmap for BH") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(BH), fill = true_positive)) +
-  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("Skew FDR p-value") + ylab("BH") + 
-  ggtitle("True Positive heatmap for BH") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BH), fill = precision)) +
+  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BH") + 
+  ggtitle("Precision heatmap for max.logPadj_BH") + scale_fill_gradient(low = "gold", high = "firebrick2") 
+ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BH), fill = recall)) +
+  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BH") + 
+  ggtitle("Recall heatmap for max.logPadj_BH") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BH), fill = risk_ratio)) +
+  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BH") + 
+  ggtitle("Risk Ratio heatmap for max.logPadj_BH") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BH), fill = true_positive)) +
+  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BH") + 
+  ggtitle("True Positive heatmap for max.logPadj_BH") + scale_fill_gradient(low = "gold", high = "firebrick2")
 ```
 
 
 Heat map for BF p-values
 ```{r BF Heatmap}
-BF_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
-FDR_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+BF_seq <- c(0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5)
+FDR_seq <-c(0.01, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
 precision.BF.dat <- NULL
 for( i in FDR_seq){
   for(j in BF_seq){
    mpra_subset <- subset(mpra_fm2, select=c(Skew.logFDR,LogSkew,max_abs_fc,max.logPadj_BH,max.logPadj_BF,top_postprob)) # subset the mpra to only the columns we want. 
    all_true <- nrow(subset(mpra_subset, top_postprob>=0.5)) #all true in that they are all likely causal according to statistical fine-mapping. This measurement is the true positives and false negatives (which are truely positive). All true goes into the denominator of precision. 
-   mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
-   mpra_subset$BF<- 10^-mpra_subset$max.logPadj_BF # undo the log transformation of log 2 fold change to create a column called BF
-   true_positive <- nrow(subset(mpra_subset, SkewFDR <= i & BF <= j & top_postprob>=0.5)) # This variable are the true positives. They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. 
-   false_positive <- nrow(subset(mpra_subset, SkewFDR <= i & BF <= j & top_postprob<=0.01)) # This variable is false positives. They are the non-Emvars which meet the specific requirements of the BF and SkewFDR and have the poor pics values. This is part of the denominator in precision (except that we are using the top_postprob <= 0.5 for risk ratio)
-    false_negative <- nrow(subset(mpra_subset, SkewFDR > i & BF > j & top_postprob>=0.5)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
-    true_negative <- nrow(subset(mpra_subset, SkewFDR > i & BF > j & top_postprob<=0.01)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the top_postprob <= 0.5 for risk ratio)
+   # mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
+   # mpra_subset$BF<- 10^-mpra_subset$max.logPadj_BF # undo the log transformation of log 2 fold change to create a column called BF
+   true_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & max.logPadj_BF >= j & top_postprob>=0.5)) # This variable are the true positives. They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. 
+   false_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & max.logPadj_BF >= j & top_postprob<=0.01)) # This variable is false positives. They are the non-Emvars which meet the specific requirements of the max.logPadj_BF and Skew.logFDR and have the poor pics values. This is part of the denominator in precision (except that we are using the top_postprob <= 0.5 for risk ratio)
+    false_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & max.logPadj_BF < j & top_postprob>=0.5)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
+    true_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & max.logPadj_BF < j & top_postprob<=0.01)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the top_postprob <= 0.5 for risk ratio)
       A <- true_positive
-      B <- nrow(subset(mpra_subset, SkewFDR <= i & BF >= j & top_postprob<=0.5))
+      B <- false_positive
       C <- false_negative
-      D <- nrow(subset(mpra_subset, SkewFDR > i & BF < j & top_postprob<=0.5))
+      D <- true_negative
          risk_ratio <- ((A)/(A+B)) / ((C)/((C+D))) # This is the risk ratio which is calculated as (TP / (TP + FP)) / (FN / (FN+TN)). Risk ratio is INF when False Negative is 0. Risk ratio is blank False Negative and True Negative are 0. 
    precision <- true_positive/(true_positive+false_positive) # Precision is calculated by True Positives / (True Positives + False Positives). 
    recall <- true_positive/all_true # Recall is calculated as True Positives / (True Positives + False Negatives). All True is True Positives + False Negatives (which are actually true)
    precision.BF.dat <- rbind(precision.BF.dat, data.frame(i, j, precision, recall, all_true, true_positive, false_positive, risk_ratio)) # makes the dataframe used for the heat map
   }
 }
-names(precision.BF.dat) <- c("FDR", "BF", "precision", "recall", "all_true", "true_positive", "false_positive", "risk_ratio")
+names(precision.BF.dat) <- c("FDR", "max.logPadj_BF", "precision", "recall", "all_true", "true_positive", "false_positive", "risk_ratio")
 
-ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(BF), fill = precision)) +
-  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("Skew FDR p-value") + ylab("BF") + 
-  ggtitle("Precision heatmap for BF") + scale_fill_gradient(low = "gold", high = "firebrick2") 
-ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(BF), fill = recall)) +
-  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("Skew FDR p-value") + ylab("BF") + 
+ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BF), fill = precision)) +
+  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BF") + 
+  ggtitle("Precision heatmap for max.logPadj_BF") + scale_fill_gradient(low = "gold", high = "firebrick2") 
+ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BF), fill = recall)) +
+  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BF") + 
   ggtitle("Recall heatmap for BF") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(BF), fill = risk_ratio)) +
-  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("Skew FDR p-value") + ylab("BF") + 
-  ggtitle("Risk Ratio heatmap for BF") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(BF), fill = true_positive)) +
-  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("Skew FDR p-value") + ylab("BF") + 
-  ggtitle("True Positive heatmap for BF") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BF), fill = risk_ratio)) +
+  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BF") + 
+  ggtitle("Risk Ratio heatmap for max.logPadj_BF") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BF), fill = true_positive)) +
+  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BF") + 
+  ggtitle("True Positive heatmap for max.logPadj_BF") + scale_fill_gradient(low = "gold", high = "firebrick2")
 ```
 
 # DHS peak precison and recall heatmaps
@@ -291,182 +352,182 @@ ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character
 
 ```{r DHS skew heatmap}
 skew_seq <-c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
-FDR_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+FDR_seq <-c(0.01, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
 precision.skew.dat <- NULL
 for( i in FDR_seq){
   for(j in skew_seq){
-   mpra_subset <- subset(mpra, select=c(Skew.logFDR,LogSkew,max_abs_fc,max.logPadj_BH,max.logPadj_BF,dhs_Tcell_merged)) # subset the mpra to only the columns we want. 
-   all_true <- nrow(subset(mpra_subset, dhs_Tcell_merged==1)) #all true in that they are all likely causal according to statistical fine-mapping. This measurement is the true positives and false negatives (which are truely positive). All true goes into the denominator of precision. 
-   mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
-   mpra_subset$Skew<- 2^mpra_subset$LogSkew # undo the log transformation of logSkew to create a column called skew
-   true_positive <- nrow(subset(mpra_subset, SkewFDR <= i & Skew >= j & dhs_Tcell_merged==1)) # This variable are the true positives (TP). They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. This is variable A in the risk ratio calculation. 
-   false_positive <- nrow(subset(mpra_subset, SkewFDR <= i & Skew >= j & dhs_Tcell_merged==0)) # This variable is false positives (FP). They are the non-Emvars which meet the specific requirements of the skew and SkewFDR and have the poor pics values. This is part of the denominator in precision.This is variable B in the risk ratio calculation (except that we are using the dhs_Tcell_merged <= 0.5)
-      false_negative <- nrow(subset(mpra_subset, SkewFDR > i & Skew < j & dhs_Tcell_merged==1)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
-      true_negative <- nrow(subset(mpra_subset, SkewFDR > i & Skew < j & dhs_Tcell_merged==0)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the dhs_Tcell_merged <= 0.5)
+   mpra_subset <- subset(mpra, select=c(Skew.logFDR,LogSkew,max_abs_fc,max.logPadj_BH,max.logPadj_BF,dhs)) # subset the mpra to only the columns we want. 
+   all_true <- nrow(subset(mpra_subset, dhs==1)) #all true in that they are all likely causal according to statistical fine-mapping. This measurement is the true positives and false negatives (which are truely positive). All true goes into the denominator of precision. 
+   # mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
+   # mpra_subset$Skew<- 2^mpra_subset$LogSkew # undo the log transformation of logSkew to create a column called skew
+   true_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & LogSkew >= j & dhs==1)) # This variable are the true positives (TP). They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. This is variable A in the risk ratio calculation. 
+   false_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & LogSkew >= j & dhs==0)) # This variable is false positives (FP). They are the non-Emvars which meet the specific requirements of the LogSkew and Skew.logFDR and have the poor pics values. This is part of the denominator in precision.This is variable B in the risk ratio calculation (except that we are using the dhs <= 0.5)
+      false_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & LogSkew < j & dhs==1)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
+      true_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & LogSkew < j & dhs==0)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the dhs <= 0.5)
       A <- true_positive
-      B <- nrow(subset(mpra_subset, SkewFDR <= i & Skew >= j & dhs_Tcell_merged==0))
+      B <- false_positive
       C <- false_negative
-      D <- nrow(subset(mpra_subset, SkewFDR > i & Skew < j & dhs_Tcell_merged==0))
+      D <- true_negative
          risk_ratio <- ((A)/(A+B)) / ((C)/((C+D))) # This is the risk ratio which is calculated as (TP / (TP + FP)) / (FN / (FN+TN)). Risk ratio is INF when False Negative is 0. Risk ratio is blank False Negative and True Negative are 0.
    precision <- true_positive/(true_positive+false_positive) # Precision is calculated by True Positives / (True Positives + False Positives). 
    recall <- true_positive/all_true # Recall is calculated as True Positives / (True Positives + False Negatives). All True is True Positives + False Negatives (which are actually true)
    precision.skew.dat <- rbind(precision.skew.dat, data.frame(i, j, precision, recall, all_true, true_positive, false_positive, false_negative, true_negative, risk_ratio, B, D)) # makes the dataframe used for the heat map
   }
 }
-names(precision.skew.dat) <- c("FDR", "Skew", "precision", "recall", "all_true", "true_positive", "false_positive", "false_negative", "true_negative", "risk_ratio", "B", "D")
+names(precision.skew.dat) <- c("FDR", "LogSkew", "precision", "recall", "all_true", "true_positive", "false_positive", "false_negative", "true_negative", "risk_ratio", "B", "D")
 
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = precision)) +
-  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("Precision heatmap for Skew") + scale_fill_gradient(low = "gold", high = "firebrick2") 
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = recall)) +
-  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("Recall heatmap for Skew") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = risk_ratio)) +
-  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("Risk Ratio heatmap for Skew") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = precision)) +
+  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("Precision heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2") 
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = recall)) +
+  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("Recall heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = risk_ratio)) +
+  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("Risk Ratio heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
 # Risk ratio is blank or INF when False Negative is 0
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = true_positive)) +
-  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("True Positive heatmap for Skew") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = false_positive)) +
-  geom_tile() + geom_text(aes(label = round(false_positive, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("False Positive heatmap for Skew (PICS <= 0.001)") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = B)) +
-  geom_tile() + geom_text(aes(label = round(B, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("False Positive heatmap for Skew (PICS <= 0.5)") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = all_true)) +
-  geom_tile() + geom_text(aes(label = round(all_true, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("All True heatmap for Skew") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = false_negative)) +
-  geom_tile() + geom_text(aes(label = round(false_negative, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("False Negative heatmap for Skew") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(Skew), fill = true_negative)) +
-  geom_tile() + geom_text(aes(label = round(true_negative, digit=2))) + xlab("Skew FDR p-value") + ylab("Skew") + 
-  ggtitle("True Negative heatmap for Skew") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = true_positive)) +
+  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("True Positive heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = false_positive)) +
+  geom_tile() + geom_text(aes(label = round(false_positive, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("False Positive heatmap for LogSkew (PICS <= 0.001)") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = B)) +
+  geom_tile() + geom_text(aes(label = round(B, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("False Positive heatmap for LogSkew (PICS <= 0.5)") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = all_true)) +
+  geom_tile() + geom_text(aes(label = round(all_true, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("All True heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = false_negative)) +
+  geom_tile() + geom_text(aes(label = round(false_negative, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("False Negative heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = true_negative)) +
+  geom_tile() + geom_text(aes(label = round(true_negative, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
+  ggtitle("True Negative heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
 ```
 
 
 ```{r DHS FC heatmap}
-skew_seq <-c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3, 4, 5, 6, 7, 8)
-FDR_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+FC_seq <-c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2)
+FDR_seq <-c(0.01, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
 precision.FC.dat <- NULL
 for( i in FDR_seq){
-  for(j in skew_seq){
-   mpra_subset <- subset(mpra, select=c(Skew.logFDR,LogSkew,max_abs_fc,max.logPadj_BH,max.logPadj_BF,dhs_Tcell_merged)) # subset the mpra to only the columns we want. 
-   all_true <- nrow(subset(mpra_subset, dhs_Tcell_merged>=0.5)) #all true in that they are all likely causal according to statistical fine-mapping. This measurement is the true positives and false negatives (which are truely positive). All true goes into the denominator of precision. 
-   mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
-   mpra_subset$FC<- 2^mpra_subset$max_abs_fc # undo the log transformation of log 2 fold change to create a column called FC
-   true_positive <- nrow(subset(mpra_subset, SkewFDR <= i & FC >= j & dhs_Tcell_merged==1)) # This variable are the true positives. They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. 
-   false_positive <- nrow(subset(mpra_subset, SkewFDR <= i & FC >= j & dhs_Tcell_merged==0)) # This variable is false positives. They are the non-Emvars which meet the specific requirements of the FC and SkewFDR and have the poor pics values. This is part of the denominator in precision. 
-    false_negative <- nrow(subset(mpra_subset, SkewFDR > i & FC < j & dhs_Tcell_merged==1)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
-    true_negative <- nrow(subset(mpra_subset, SkewFDR > i & FC < j & dhs_Tcell_merged==0)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the dhs_Tcell_merged <= 0.5)
+  for(j in FC_seq){
+   mpra_subset <- subset(mpra, select=c(Skew.logFDR,LogSkew,max_abs_fc,max.logPadj_BH,max.logPadj_BF,dhs)) # subset the mpra to only the columns we want. 
+   all_true <- nrow(subset(mpra_subset, dhs>=0.5)) #all true in that they are all likely causal according to statistical fine-mapping. This measurement is the true positives and false negatives (which are truely positive). All true goes into the denominator of precision. 
+   #mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
+   # mpra_subset$FC<- 2^mpra_subset$max_abs_fc # undo the log transformation of log 2 fold change to create a column called FC
+   true_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & max_abs_fc >= j & dhs==1)) # This variable are the true positives. They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. 
+   false_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & max_abs_fc >= j & dhs==0)) # This variable is false positives. They are the non-Emvars which meet the specific requirements of the max_abs_fc and Skew.logFDR and have the poor pics values. This is part of the denominator in precision. 
+    false_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & max_abs_fc < j & dhs==1)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
+    true_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & max_abs_fc < j & dhs==0)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the dhs <= 0.5)
       A <- true_positive
-      B <- nrow(subset(mpra_subset, SkewFDR <= i & FC >= j & dhs_Tcell_merged==0))
+      B <- false_positive
       C <- false_negative
-      D <- nrow(subset(mpra_subset, SkewFDR > i & FC < j & dhs_Tcell_merged==0))
+      D <- true_negative
          risk_ratio <- ((A)/(A+B)) / ((C)/((C+D))) # This is the risk ratio which is calculated as (TP / (TP + FP)) / (FN / (FN+TN)). Risk ratio is INF when False Negative is 0. Risk ratio is blank False Negative and True Negative are 0.
    precision <- true_positive/(true_positive+false_positive) # Precision is calculated by True Positives / (True Positives + False Positives). 
    recall <- true_positive/all_true # Recall is calculated as True Positives / (True Positives + False Negatives). All True is True Positives + False Negatives (which are actually true)
    precision.FC.dat <- rbind(precision.FC.dat, data.frame(i, j, precision, recall, all_true, true_positive, false_positive, risk_ratio)) # makes the dataframe used for the heat map
   }
 }
-names(precision.FC.dat) <- c("FDR", "FC", "precision", "recall", "all_true", "true_positive", "false_positive", "risk_ratio")
+names(precision.FC.dat) <- c("FDR", "max_abs_fc", "precision", "recall", "all_true", "true_positive", "false_positive", "risk_ratio")
 
-ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(FC), fill = precision)) +
-  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("Skew FDR p-value") + ylab("FC") + 
-  ggtitle("Precision heatmap for FC") + scale_fill_gradient(low = "gold", high = "firebrick2") 
-ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(FC), fill = recall)) +
-  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("Skew FDR p-value") + ylab("FC") + 
-  ggtitle("Recall heatmap for FC") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(FC), fill = risk_ratio)) +
-  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("Skew FDR p-value") + ylab("FC") + 
-  ggtitle("Risk Ratio heatmap for FC") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(FC), fill = true_positive)) +
-  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("Skew FDR p-value") + ylab("FC") + 
-  ggtitle("True Positive heatmap for FC") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(max_abs_fc), fill = precision)) +
+  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("-log Skew FDR") + ylab("max_abs_fc") + 
+  ggtitle("Precision heatmap for max_abs_fc") + scale_fill_gradient(low = "gold", high = "firebrick2") 
+ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(max_abs_fc), fill = recall)) +
+  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("-log Skew FDR") + ylab("max_abs_fc") + 
+  ggtitle("Recall heatmap for max_abs_fc") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(max_abs_fc), fill = risk_ratio)) +
+  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("-log Skew FDR") + ylab("max_abs_fc") + 
+  ggtitle("Risk Ratio heatmap for max_abs_fc") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.FC.dat), aes(x = as.character(FDR), y = as.character(max_abs_fc), fill = true_positive)) +
+  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("-log Skew FDR") + ylab("max_abs_fc") + 
+  ggtitle("True Positive heatmap for max_abs_fc") + scale_fill_gradient(low = "gold", high = "firebrick2")
 ```
 
 Heat map for BH p-values
 
 ```{r DHS BH heatmap}
-BH_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
-FDR_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+BH_seq <- c(0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5)
+FDR_seq <-c(0.01, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
 precision.BH.dat <- NULL
 for( i in FDR_seq){
   for(j in BH_seq){
-   mpra_subset <- subset(mpra, select=c(Skew.logFDR,LogSkew,max_abs_fc,max.logPadj_BH,max.logPadj_BF,dhs_Tcell_merged)) # subset the mpra to only the columns we want. 
-   all_true <- nrow(subset(mpra_subset, dhs_Tcell_merged>=0.5)) #all true in that they are all likely causal according to statistical fine-mapping. This measurement is the true positives and false negatives (which are truely positive). All true goes into the denominator of precision. 
-   mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
-   mpra_subset$BH<- 10^-mpra_subset$max.logPadj_BH # undo the log transformation of log 2 fold change to create a column called BH
-   true_positive <- nrow(subset(mpra_subset, SkewFDR <= i & BH <= j & dhs_Tcell_merged==1)) # This variable are the true positives. They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. 
-   false_positive <- nrow(subset(mpra_subset, SkewFDR <= i & BH <= j & dhs_Tcell_merged==0)) # This variable is false positives. They are the non-Emvars which meet the specific requirements of the BH and SkewFDR and have the poor pics values. This is part of the denominator in precision.  
-    false_negative <- nrow(subset(mpra_subset, SkewFDR > i & BH > j & dhs_Tcell_merged==1)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
-    true_negative <- nrow(subset(mpra_subset, SkewFDR > i & BH > j & dhs_Tcell_merged==0)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the dhs_Tcell_merged <= 0.5 for risk ratio)
+   mpra_subset <- subset(mpra, select=c(Skew.logFDR,LogSkew,max_abs_fc,max.logPadj_BH,max.logPadj_BF,dhs)) # subset the mpra to only the columns we want. 
+   all_true <- nrow(subset(mpra_subset, dhs>=0.5)) #all true in that they are all likely causal according to statistical fine-mapping. This measurement is the true positives and false negatives (which are truely positive). All true goes into the denominator of precision. 
+   # mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
+  #  mpra_subset$BH<- 10^-mpra_subset$max.logPadj_BH # undo the log transformation of log 2 fold change to create a column called BH
+   true_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & max.logPadj_BH >= j & dhs==1)) # This variable are the true positives. They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. 
+   false_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & max.logPadj_BH >= j & dhs==0)) # This variable is false positives. They are the non-Emvars which meet the specific requirements of the max.logPadj_BH and Skew.logFDR and have the poor pics values. This is part of the denominator in precision.  
+    false_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & max.logPadj_BH < j & dhs==1)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
+    true_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & max.logPadj_BH < j & dhs==0)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the dhs <= 0.5 for risk ratio)
       A <- true_positive
-      B <- nrow(subset(mpra_subset, SkewFDR <= i & BH >= j & dhs_Tcell_merged==0))
+      B <- false_positive
       C <- false_negative
-      D <- nrow(subset(mpra_subset, SkewFDR > i & BH < j & dhs_Tcell_merged==0))
+      D <- true_negative
          risk_ratio <- ((A)/(A+B)) / ((C)/((C+D))) # This is the risk ratio which is calculated as (TP / (TP + FP)) / (FN / (FN+TN)). Risk ratio is INF when False Negative is 0. Risk ratio is blank False Negative and True Negative are 0. 
    precision <- true_positive/(true_positive+false_positive) # Precision is calculated by True Positives / (True Positives + False Positives). 
    recall <- true_positive/all_true # Recall is calculated as True Positives / (True Positives + False Negatives). All True is True Positives + False Negatives (which are actually true)
    precision.BH.dat <- rbind(precision.BH.dat, data.frame(i, j, precision, recall, all_true, true_positive, false_positive, risk_ratio)) # makes the dataframe used for the heat map
   }
 }
-names(precision.BH.dat) <- c("FDR", "BH", "precision", "recall", "all_true", "true_positive", "false_positive", "risk_ratio")
+names(precision.BH.dat) <- c("FDR", "max.logPadj_BH", "precision", "recall", "all_true", "true_positive", "false_positive", "risk_ratio")
 
-ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(BH), fill = precision)) +
-  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("Skew FDR p-value") + ylab("BH") + 
-  ggtitle("Precision heatmap for BH") + scale_fill_gradient(low = "gold", high = "firebrick2") 
-ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(BH), fill = recall)) +
-  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("Skew FDR p-value") + ylab("BH") + 
-  ggtitle("Recall heatmap for BH") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(BH), fill = risk_ratio)) +
-  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("Skew FDR p-value") + ylab("BH") + 
-  ggtitle("Risk Ratio heatmap for BH") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(BH), fill = true_positive)) +
-  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("Skew FDR p-value") + ylab("BH") + 
-  ggtitle("True Positive heatmap for BH") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BH), fill = precision)) +
+  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BH") + 
+  ggtitle("Precision heatmap for max.logPadj_BH") + scale_fill_gradient(low = "gold", high = "firebrick2") 
+ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BH), fill = recall)) +
+  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BH") + 
+  ggtitle("Recall heatmap for max.logPadj_BH") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BH), fill = risk_ratio)) +
+  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BH") + 
+  ggtitle("Risk Ratio heatmap for max.logPadj_BH") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.BH.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BH), fill = true_positive)) +
+  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BH") + 
+  ggtitle("True Positive heatmap for max.logPadj_BH") + scale_fill_gradient(low = "gold", high = "firebrick2")
 ```
 
 Heat map for BF p-values
 ```{r DHS BF Heatmap}
-BF_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
-FDR_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+BF_seq <- c(0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5)
+FDR_seq <-c(0.01, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
 precision.BF.dat <- NULL
 for( i in FDR_seq){
   for(j in BF_seq){
-   mpra_subset <- subset(mpra, select=c(Skew.logFDR,LogSkew,max_abs_fc,max.logPadj_BH,max.logPadj_BF,dhs_Tcell_merged)) # subset the mpra to only the columns we want. 
-   all_true <- nrow(subset(mpra_subset, dhs_Tcell_merged>=0.5)) #all true in that they are all likely causal according to statistical fine-mapping. This measurement is the true positives and false negatives (which are truely positive). All true goes into the denominator of precision. 
-   mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
-   mpra_subset$BF<- 10^-mpra_subset$max.logPadj_BF # undo the log transformation of log 2 fold change to create a column called BF
-   true_positive <- nrow(subset(mpra_subset, SkewFDR <= i & BF <= j & dhs_Tcell_merged==1)) # This variable are the true positives. They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. 
-   false_positive <- nrow(subset(mpra_subset, SkewFDR <= i & BF <= j & dhs_Tcell_merged==0)) # This variable is false positives. They are the non-Emvars which meet the specific requirements of the BF and SkewFDR and have the poor pics values. This is part of the denominator in precision (except that we are using the dhs_Tcell_merged <= 0.5 for risk ratio)
-    false_negative <- nrow(subset(mpra_subset, SkewFDR > i & BF > j & dhs_Tcell_merged==1)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
-    true_negative <- nrow(subset(mpra_subset, SkewFDR > i & BF > j & dhs_Tcell_merged==0)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the dhs_Tcell_merged <= 0.5 for risk ratio)
+   mpra_subset <- subset(mpra, select=c(Skew.logFDR,LogSkew,max_abs_fc,max.logPadj_BH,max.logPadj_BF,dhs)) # subset the mpra to only the columns we want. 
+   all_true <- nrow(subset(mpra_subset, dhs>=0.5)) #all true in that they are all likely causal according to statistical fine-mapping. This measurement is the true positives and false negatives (which are truely positive). All true goes into the denominator of precision. 
+   # mpra_subset$SkewFDR<- 10^-mpra_subset$Skew.logFDR # undo the negative log transformation of the Skew log p-values and create the column SkewFDR
+   # mpra_subset$BF<- 10^-mpra_subset$max.logPadj_BF # undo the log transformation of log 2 fold change to create a column called BF
+   true_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & max.logPadj_BF >= j & dhs==1)) # This variable are the true positives. They are emVars which meet the specific requirements of each variable and are positive pics values (meaning they are truly significant). This is in the numerator in both precision and recall. 
+   false_positive <- nrow(subset(mpra_subset, Skew.logFDR >= i & max.logPadj_BF >= j & dhs==0)) # This variable is false positives. They are the non-Emvars which meet the specific requirements of the max.logPadj_BF and Skew.logFDR and have the poor pics values. This is part of the denominator in precision (except that we are using the dhs <= 0.5 for risk ratio)
+    false_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & max.logPadj_BF < j & dhs==1)) # This variable are the false negatives (FN). They are not classified as emVars which meet the specific requirements of each variable, but have positive pics values (meaning they are truly significant). This is variable C in the risk ratio calculation. 
+    true_negative <- nrow(subset(mpra_subset, Skew.logFDR < i & max.logPadj_BF < j & dhs==0)) # This variable are the true negatives (TN). They are not classified as emVars which meet the specific requirements of each variable, and have poor pics values (meaning they are truly NOT significant). This is variable D in the risk ratio calculation (except that we are using the dhs <= 0.5 for risk ratio)
       A <- true_positive
-      B <- nrow(subset(mpra_subset, SkewFDR <= i & BF >= j & dhs_Tcell_merged==0))
+      B <- false_positive
       C <- false_negative
-      D <- nrow(subset(mpra_subset, SkewFDR > i & BF < j & dhs_Tcell_merged==0))
+      D <- true_negative
          risk_ratio <- ((A)/(A+B)) / ((C)/((C+D))) # This is the risk ratio which is calculated as (TP / (TP + FP)) / (FN / (FN+TN)). Risk ratio is INF when False Negative is 0. Risk ratio is blank False Negative and True Negative are 0. 
    precision <- true_positive/(true_positive+false_positive) # Precision is calculated by True Positives / (True Positives + False Positives). 
    recall <- true_positive/all_true # Recall is calculated as True Positives / (True Positives + False Negatives). All True is True Positives + False Negatives (which are actually true)
    precision.BF.dat <- rbind(precision.BF.dat, data.frame(i, j, precision, recall, all_true, true_positive, false_positive, risk_ratio)) # makes the dataframe used for the heat map
   }
 }
-names(precision.BF.dat) <- c("FDR", "BF", "precision", "recall", "all_true", "true_positive", "false_positive", "risk_ratio")
+names(precision.BF.dat) <- c("FDR", "max.logPadj_BF", "precision", "recall", "all_true", "true_positive", "false_positive", "risk_ratio")
 
-ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(BF), fill = precision)) +
-  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("Skew FDR p-value") + ylab("BF") + 
-  ggtitle("Precision heatmap for BF") + scale_fill_gradient(low = "gold", high = "firebrick2") 
-ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(BF), fill = recall)) +
-  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("Skew FDR p-value") + ylab("BF") + 
-  ggtitle("Recall heatmap for BF") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(BF), fill = risk_ratio)) +
-  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("Skew FDR p-value") + ylab("BF") + 
-  ggtitle("Risk Ratio heatmap for BF") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(BF), fill = true_positive)) +
-  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("Skew FDR p-value") + ylab("BF") + 
-  ggtitle("True Positive heatmap for BF") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BF), fill = precision)) +
+  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BF") + 
+  ggtitle("Precision heatmap for max.logPadj_BF") + scale_fill_gradient(low = "gold", high = "firebrick2") 
+ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BF), fill = recall)) +
+  geom_tile() + geom_text(aes(label = round(recall, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BF") + 
+  ggtitle("Recall heatmap for max.logPadj_BF") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BF), fill = risk_ratio)) +
+  geom_tile() + geom_text(aes(label = round(risk_ratio, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BF") + 
+  ggtitle("Risk Ratio heatmap for max.logPadj_BF") + scale_fill_gradient(low = "gold", high = "firebrick2")
+ggplot(data.frame(precision.BF.dat), aes(x = as.character(FDR), y = as.character(max.logPadj_BF), fill = true_positive)) +
+  geom_tile() + geom_text(aes(label = round(true_positive, digit=2))) + xlab("-log Skew FDR") + ylab("max.logPadj_BF") + 
+  ggtitle("True Positive heatmap for max.logPadj_BF") + scale_fill_gradient(low = "gold", high = "firebrick2")
 ```
 
 
