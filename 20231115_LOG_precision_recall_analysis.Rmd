@@ -27,7 +27,7 @@ To calculate the true_positives and false_positives we use these thresholds:
 
 True Positive: max_pics>=0.5
 
-FalsePositive: max_pics<=0.001
+False Positive: max_pics<=0.001
 
 ```{r, echo=FALSE, message=FALSE}
 # loading packages

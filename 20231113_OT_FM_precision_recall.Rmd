@@ -8,6 +8,37 @@ date: "2023-11-13"
 
 This HTML will show precision, recall and risk ratio plots for the Open Targets fine-mapping. Also there are precision, recall and risk ratio heat maps for DHS peaks. 
 
+Precision is the fraction of relevant instances divided by all retrieved instances. This is also called the positive predictive value. 
+Precision = True Positives / (True Positives + False Positives)
+
+Recall is the fraction of all retrieved instances divided by all the retrieved instances. This is also called the sensitivity. 
+Recall = True Positives / (True Positives + False Negatives)
+
+This html will give precision and recall plots for these parameters: 
+
+1. Skew
+
+2. Max Allele Fold Change
+
+3. Fold Change p-value with Benjamhini Hochberg correction
+
+4. Fold Change p-value with Bonferroni correction
+
+To calculate the true_positives and false_positives we use these thresholds:
+
+OT fine mapping:
+
+True: max_postprob >= 0.5
+
+False: max_postprob <= 0.01
+
+DHS:
+
+True: DHS == 1
+
+False: DHS == 0
+
+
 ```{r setup, include=FALSE, warning=FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -22,8 +53,9 @@ library(rmarkdown)
 ```
 
 
-Load open targets fine mapping data
+
 ```{r load OT FM, echo=FALSE}
+# Load open targets fine mapping data
 open_target_finemapping <- read.table("/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/Chromosome_19_to_38/data/open_target_finemapping.txt", sep="\t", header=T)
 # test_fm <- subset(open_target_finemapping, Dermatologic_disease=="Dermatologic_disease", select=c("postprob","fm_trait","Dermatologic_disease","Dermatologic_disease_pp"))
 ```
@@ -40,6 +72,7 @@ mpra.dir <- "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/C
 mpra <- read.table(mpra.dir, sep="\t", header=T)
 mpra_name <- "20230825_mpra_merge_Tcell_glm_john"
 filter <- "none"
+mpra$dhs <- mpra$dhs_Tcell_merged 
 ```
 
 ```{r, eval=FALSE, echo=FALSE}
@@ -50,7 +83,7 @@ if(filter == "none" & mpra_name == "20230825_mpra_merge_Tcell_glm_john"){
 }
 ```
 
-```{r}
+```{r, eval=FALSE, echo=FALSE}
 # This html version uses the mpra data from 20230518_unstimulated_jurkat_glm
 # This html version has no filter 
 mpra.dir <- "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/Chromosome_19_to_38/data/20230518_jurkat_glm_mpra_merge_temporary_38.txt"
@@ -62,7 +95,7 @@ mpra$A.logPadj_BH[is.na(mpra$A.logPadj_BH)]<- (0)
 mpra$B.logPadj_BH[is.na(mpra$B.logPadj_BH)]<- (0)
 mpra$A.logPadj_BF[is.na(mpra$A.logPadj_BF)]<- (0)
 mpra$B.logPadj_BF[is.na(mpra$B.logPadj_BF)]<- (0)
-mpra$dhs <- mpra$dhs_Tcell_merged
+mpra$dhs <- mpra$dhs_Tcell_merged 
 mpra_name <- "20230518_unstimulated_jurkat_glm"
 filter <- "none"
 
@@ -83,6 +116,7 @@ mpra.dir <- "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/C
 mpra <- read.table(mpra.dir, sep="\t", header=T)
 mpra_name <- "20230518_GM12878_emVAR_glm"
 filter <- "none"
+mpra$dhs <- mpra$dhs_Bcell_merged 
 ```
 
 ```{r, eval=FALSE, echo=FALSE}
@@ -391,10 +425,7 @@ ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.charact
   ggtitle("True Positive heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
 ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = false_positive)) +
   geom_tile() + geom_text(aes(label = round(false_positive, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
-  ggtitle("False Positive heatmap for LogSkew (PICS <= 0.001)") + scale_fill_gradient(low = "gold", high = "firebrick2")
-ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = B)) +
-  geom_tile() + geom_text(aes(label = round(B, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
-  ggtitle("False Positive heatmap for LogSkew (PICS <= 0.5)") + scale_fill_gradient(low = "gold", high = "firebrick2")
+  ggtitle("False Positive heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
 ggplot(data.frame(precision.skew.dat), aes(x = as.character(FDR), y = as.character(LogSkew), fill = all_true)) +
   geom_tile() + geom_text(aes(label = round(all_true, digit=2))) + xlab("-log Skew FDR") + ylab("LogSkew") + 
   ggtitle("All True heatmap for LogSkew") + scale_fill_gradient(low = "gold", high = "firebrick2")
