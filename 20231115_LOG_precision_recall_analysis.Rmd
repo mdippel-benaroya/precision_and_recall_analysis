@@ -82,7 +82,7 @@ if(filter == "none" & mpra_name == "20230518_unstimulated_jurkat_glm"){
 }
 ```
 
-```{r}
+```{r, eval=FALSE, echo=FALSE}
 # This html version uses the mpra data from 20230518_GM12878_emVAR_glm_mpra_merge.txt
 # This html version has no filter
 mpra.dir <- "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/Chromosome_19_to_38/data/20230518_GM12878_emVAR_glm_mpra_merge_temporary_38.txt"
@@ -95,6 +95,22 @@ filter <- "none"
 # These are the different options for saving the html. They depend on the values mpra_name and filter.
 # This is going to be the default 
 if(filter == "none" & mpra_name == "20230518_GM12878_emVAR_glm"){
+  render("20231115_LOG_precision_recall_analysis.Rmd",output_file = paste0(mpra_name, "_LOG_PICS_precision_recall",".html"))
+}
+```
+
+
+```{r}
+mpra.dir <- "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/Chromosome_19_to_38/data/20231115_stimulated_jurkat_emVar_glm_mpra_merge_temporary_38.txt"
+mpra<-read.delim(paste0(mpra.dir), header=T, stringsAsFactors = F, sep="\t")
+mpra_name <- "20231115_stim_jurkat_glm"
+filter <- "none"
+```
+
+```{r, eval=FALSE, echo=FALSE}
+# These are the different options for saving the html. They depend on the values mpra_name and filter.
+# This is going to be the default 
+if(filter == "none" & mpra_name == "20231115_stim_jurkat_glm"){
   render("20231115_LOG_precision_recall_analysis.Rmd",output_file = paste0(mpra_name, "_LOG_PICS_precision_recall",".html"))
 }
 ```
