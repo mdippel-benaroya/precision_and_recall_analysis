@@ -1,0 +1,626 @@
+ ---
+title: "Old precision and recall methods"
+output: html_document
+author: Max Dippel
+date: "2023-09-12"
+---
+
+This rmd contains all of the old and dysfunctional ways to calculate precision and recall that we are no longer using
+
+Precision is the fraction of relevant instances divided by all retrieved instances. This is also called the positive predictive value. 
+Precision = True Positives / (True Positives + False Positives)
+
+Recall is the fraction of all retrieved instances divided by all the retrieved instances. This is also called the sensitivity. 
+
+Precision = True Positives / (True Positives + False Negatives)
+
+Loading the MPRA data (this is the August 25th primary T cell using the T cell filter)
+```{r, eval=FALSE, echo=FALSE}
+mpra.dir <- "/nfs/jray/screens/Mouri_et_al_MPRA/Mouri_et_al_replication/Mouri_replication_rmds/20230825_stimulated_primary_Tcell_glm_replication/john_filter/data/20230825_mpra_merge_Tcell_glm_john.txt"
+mpra <- read.table(mpra.dir, sep="\t", header=T)
+```
+
+This runs a loop to find the max fold changes.
+```{r, eval=FALSE, echo=FALSE}
+#For each MPRA variant, find the fold change of the allele with the largest absolute fold change
+# This creates a column full of NAs for the loop to fill
+mpra$max_abs_fc <- NA
+# This loop calculates the column of max_abs_fc. It takes the two alleles A and B and calculates which one's absolute value is larger. That larger value is the value of the new column (can be positive or negative). 
+for(i in 1:nrow(mpra)){
+  if(abs(mpra[i,]$A.log2FC)>abs(mpra[i,]$B.log2FC)){
+    mpra[i,]$max_abs_fc<-mpra[i,]$A.log2FC
+  }else{
+    mpra[i,]$max_abs_fc<-mpra[i,]$B.log2FC
+  }
+}
+```
+
+This runs a loop to find the max fold change p values.
+```{r, eval=FALSE, echo=FALSE}
+#For each MPRA variant, find the fold change of the allele with the largest absolute fold change
+# This creates a column full of NAs for the loop to fill
+mpra$max.logPadj_BH<-NA
+# This loop calculates the column of max_abs_fc. It takes the two alleles A and B and calculates which one's absolute value is larger. That larger value is the value of the new column (can be positive or negative). 
+for(i in 1:nrow(mpra)){
+  if(abs(mpra[i,]$A.logPadj_BH)>abs(mpra[i,]$B.logPadj_BH)){
+    mpra[i,]$max.logPadj_BH<-mpra[i,]$A.logPadj_BH
+  }else{
+    mpra[i,]$max.logPadj_BH<-mpra[i,]$B.logPadj_BH
+  }
+}
+```
+
+First attempt at precision and recall calculations without that many fancy tricks 
+```{r, eval=FALSE, echo=FALSE}
+# creating empty dataframe to populate with ones and zeros based on fc and p values 
+dat.precision<- data.frame(mpra$max.logPadj_BH,abs(mpra$max_abs_fc))
+names(dat.precision) <- c("max.logPadj_BH","max_abs_fc")
+dat.precision$max.logPadj_BH_0.25=0 # max.logPadj_BH greater than or equal to 0.25
+dat.precision$max.logPadj_BH_0.5=0 # max.logPadj_BH greater than or equal to 0.5
+dat.precision$max.logPadj_BH_1=0 # max.logPadj_BH greater than or equal to 1
+dat.precision$max.logPadj_BH_2=0 # max.logPadj_BH greater than or equal to 2
+dat.precision$max_abs_fc_0.25=0 # max_abs_fc greater than or equal to 0.25
+dat.precision$max_abs_fc_0.5=0 # max_abs_fc greater than or equal to 0.5
+dat.precision$max_abs_fc_1=0 # max_abs_fc greater than or equal to 1
+dat.precision$max_abs_fc_2=0 # max_abs_fc greater than or equal to 2
+
+# Big for loop to populate 
+for(i in 1:nrow(dat.precision)){
+   if(dat.precision[i,]$max.logPadj_BH>=0.25){ 
+    dat.precision[i,]$max.logPadj_BH_0.25=1
+   } # If max.logPadj_BH greater than or equal to 0.25 then put a 1 in the max.logPadj_BH_0.25 column
+   if(dat.precision[i,]$max.logPadj_BH>=0.5){
+    dat.precision[i,]$max.logPadj_BH_0.5=1
+   } # If max.logPadj_BH greater than or equal to 0.5 then put a 1 in the max.logPadj_BH_0.5 column
+   if(dat.precision[i,]$max.logPadj_BH>=1){
+    dat.precision[i,]$max.logPadj_BH_1=1
+  } # If max.logPadj_BH greater than or equal to 1 then put a 1 in the max.logPadj_BH_1 column
+  if(dat.precision[i,]$max.logPadj_BH>=2){
+    dat.precision[i,]$max.logPadj_BH_2=1
+  } # If max.logPadj_BH greater than or equal to 2 then put a 1 in the max.logPadj_BH_2 column
+  if(dat.precision[i,]$max_abs_fc>=0.25){
+    dat.precision[i,]$max_abs_fc_0.25=1
+   } # If max_abs_fc greater than or equal to 0.25 then put a 1 in the max_abs_fc_0.25 column
+  if(dat.precision[i,]$max_abs_fc>=0.5){
+    dat.precision[i,]$max_abs_fc_0.5=1
+  } # If max_abs_fc greater than or equal to 0.5 then put a 1 in the max_abs_fc_0.5 column
+  if(dat.precision[i,]$max_abs_fc>=1){
+    dat.precision[i,]$max_abs_fc_1=1
+   } # If max_abs_fc greater than or equal to 1 then put a 1 in the max_abs_fc_1 column
+   if(dat.precision[i,]$max_abs_fc>=2){
+    dat.precision[i,]$max_abs_fc_2=1
+   } # If max_abs_fc greater than or equal to 2 then put a 1 in the max_abs_fc_2 column
+}
+```
+
+Calculating the precision values and then creating a heat map
+```{r, eval=FALSE, echo=FALSE}
+df <- data.frame(cbind(
+c(Metrics::precision(dat.precision$max.logPadj_BH_0.25, dat.precision$max_abs_fc_0.25), 
+Metrics::precision(dat.precision$max.logPadj_BH_0.5, dat.precision$max_abs_fc_0.25),
+Metrics::precision(dat.precision$max.logPadj_BH_1, dat.precision$max_abs_fc_0.25),
+Metrics::precision(dat.precision$max.logPadj_BH_2, dat.precision$max_abs_fc_0.25)),
+
+c(Metrics::precision(dat.precision$max.logPadj_BH_0.25, dat.precision$max_abs_fc_0.5),
+Metrics::precision(dat.precision$max.logPadj_BH_0.5, dat.precision$max_abs_fc_0.5),
+Metrics::precision(dat.precision$max.logPadj_BH_1, dat.precision$max_abs_fc_0.5),
+Metrics::precision(dat.precision$max.logPadj_BH_2, dat.precision$max_abs_fc_0.5)),
+
+c(Metrics::precision(dat.precision$max.logPadj_BH_0.25, dat.precision$max_abs_fc_1),
+Metrics::precision(dat.precision$max.logPadj_BH_0.5, dat.precision$max_abs_fc_1),
+Metrics::precision(dat.precision$max.logPadj_BH_1, dat.precision$max_abs_fc_1),
+Metrics::precision(dat.precision$max.logPadj_BH_2, dat.precision$max_abs_fc_1)),
+
+c(Metrics::precision(dat.precision$max.logPadj_BH_0.25, dat.precision$max_abs_fc_2),
+Metrics::precision(dat.precision$max.logPadj_BH_0.5, dat.precision$max_abs_fc_2),
+Metrics::precision(dat.precision$max.logPadj_BH_1, dat.precision$max_abs_fc_2),
+Metrics::precision(dat.precision$max.logPadj_BH_2, dat.precision$max_abs_fc_2))
+))
+
+colnames(df) <- c("FC 0.25","FC 0.5","FC 1", "FC 2")
+rownames(df) <- c("Padj_BH 0.25", "Padj_BH 0.5", "Padj_BH 1", "Padj_BH 2")
+
+df2 <- df %>%
+  rownames_to_column() %>%
+  gather(colname, value, -rowname)
+head(df2)
+
+ggplot(df2, aes(x = rowname, y = colname, fill = value)) +
+  geom_tile() + geom_text(aes(label = round(value, digit=2))) + xlab("Max log p-value Benjamini-Hochberg adjustment") + ylab("Max absolute value fold change") + ggtitle("Precision heatmap for Fold Change") + 
+  scale_fill_gradient(low = "gold", high = "firebrick2") +
+  coord_fixed()
+```
+
+Loop to give zeros and ones based on fc values
+```{r, eval=FALSE, echo=FALSE}
+dat.precision<- data.frame(abs(mpra$max_abs_fc)) # create a data frame with max.logPadj_BH and max_abs_fc 
+a[1:20] <- data.frame(rep.int(0, 13845)) # create a data frame of zeros
+dat.precision2 <- data.frame(dat.precision,a) # add the max.logPadj_BH and max_abs_fc columns
+names(dat.precision2) <- c("fc",paste0("fc_", seq(0.1, 2, by = 0.1))) # give names to the columns
+dat.precision2 <- dat.precision2[,-22]
+
+dat.precision2 <- dat.precision2 |>
+  mutate(row = row_number()) |> # not necessary if `fc` values guaranteed unique
+  pivot_longer(-c(row, fc)) |>
+  mutate(value = 1 * (parse_number(name) <= fc)) |>
+  pivot_wider(names_from = name, values_from = value)
+```
+
+Loop to give zeros and ones based on padj values
+```{r, eval=FALSE, echo=FALSE}
+dat.precision3<- data.frame(mpra$max.logPadj_BH) # create a data frame with max.logPadj_BH and max_abs_fc 
+a <- c(0,0,0)
+a[1:20] <- data.frame(rep.int(0, 13845)) # create b data frame of zeros
+dat.precision3 <- data.frame(dat.precision3,a) # add the max.logPadj_BH and max_abs_fc columns
+names(dat.precision3) <- c("padj",paste0("padj_", seq(0.1, 2, by = 0.1))) # give names to the columns
+
+dat.precision3 <- dat.precision3 |>
+  mutate(row = row_number()) |> # not necessary if `padj` values guaranteed unique
+  pivot_longer(-c(row, padj)) |>
+  mutate(value = 1 * (parse_number(name) <= padj)) |>
+  pivot_wider(names_from = name, values_from = value)
+```
+
+Merge the two data frames
+```{r, eval=FALSE, echo=FALSE}
+dat.precision4 <- merge(dat.precision2, dat.precision3, by="row")
+dat.precision4 <- dat.precision4[,-1]
+```
+
+Calculating the precision values and then creating a heat map
+```{r, eval=FALSE, echo=FALSE}
+df <- data.frame(cbind(
+c(Metrics::precision(dat.precision4$padj_0.1, dat.precision4$fc_0.1), 
+Metrics::precision(dat.precision4$padj_0.2, dat.precision4$fc_0.1),
+Metrics::precision(dat.precision4$padj_0.3, dat.precision4$fc_0.1),
+Metrics::precision(dat.precision4$padj_0.4, dat.precision4$fc_0.1),
+Metrics::precision(dat.precision4$padj_0.5, dat.precision4$fc_0.1),
+Metrics::precision(dat.precision4$padj_0.6, dat.precision4$fc_0.1), 
+Metrics::precision(dat.precision4$padj_0.7, dat.precision4$fc_0.1),
+Metrics::precision(dat.precision4$padj_0.8, dat.precision4$fc_0.1),
+Metrics::precision(dat.precision4$padj_0.9, dat.precision4$fc_0.1),
+Metrics::precision(dat.precision4$padj_1, dat.precision4$fc_0.1)),
+
+c(Metrics::precision(dat.precision4$padj_0.1, dat.precision4$fc_0.2), 
+Metrics::precision(dat.precision4$padj_0.2, dat.precision4$fc_0.2),
+Metrics::precision(dat.precision4$padj_0.3, dat.precision4$fc_0.2),
+Metrics::precision(dat.precision4$padj_0.4, dat.precision4$fc_0.2),
+Metrics::precision(dat.precision4$padj_0.5, dat.precision4$fc_0.2),
+Metrics::precision(dat.precision4$padj_0.6, dat.precision4$fc_0.2), 
+Metrics::precision(dat.precision4$padj_0.7, dat.precision4$fc_0.2),
+Metrics::precision(dat.precision4$padj_0.8, dat.precision4$fc_0.2),
+Metrics::precision(dat.precision4$padj_0.9, dat.precision4$fc_0.2),
+Metrics::precision(dat.precision4$padj_1, dat.precision4$fc_0.2)),
+
+c(Metrics::precision(dat.precision4$padj_0.1, dat.precision4$fc_0.3), 
+Metrics::precision(dat.precision4$padj_0.2, dat.precision4$fc_0.3),
+Metrics::precision(dat.precision4$padj_0.3, dat.precision4$fc_0.3),
+Metrics::precision(dat.precision4$padj_0.4, dat.precision4$fc_0.3),
+Metrics::precision(dat.precision4$padj_0.5, dat.precision4$fc_0.3),
+Metrics::precision(dat.precision4$padj_0.6, dat.precision4$fc_0.3), 
+Metrics::precision(dat.precision4$padj_0.7, dat.precision4$fc_0.3),
+Metrics::precision(dat.precision4$padj_0.8, dat.precision4$fc_0.3),
+Metrics::precision(dat.precision4$padj_0.9, dat.precision4$fc_0.3),
+Metrics::precision(dat.precision4$padj_1, dat.precision4$fc_0.3)),
+
+c(Metrics::precision(dat.precision4$padj_0.1, dat.precision4$fc_0.4), 
+Metrics::precision(dat.precision4$padj_0.2, dat.precision4$fc_0.4),
+Metrics::precision(dat.precision4$padj_0.3, dat.precision4$fc_0.4),
+Metrics::precision(dat.precision4$padj_0.4, dat.precision4$fc_0.4),
+Metrics::precision(dat.precision4$padj_0.5, dat.precision4$fc_0.4),
+Metrics::precision(dat.precision4$padj_0.6, dat.precision4$fc_0.4), 
+Metrics::precision(dat.precision4$padj_0.7, dat.precision4$fc_0.4),
+Metrics::precision(dat.precision4$padj_0.8, dat.precision4$fc_0.4),
+Metrics::precision(dat.precision4$padj_0.9, dat.precision4$fc_0.4),
+Metrics::precision(dat.precision4$padj_1, dat.precision4$fc_0.4)),
+
+c(Metrics::precision(dat.precision4$padj_0.1, dat.precision4$fc_0.5), 
+Metrics::precision(dat.precision4$padj_0.2, dat.precision4$fc_0.5),
+Metrics::precision(dat.precision4$padj_0.3, dat.precision4$fc_0.5),
+Metrics::precision(dat.precision4$padj_0.4, dat.precision4$fc_0.5),
+Metrics::precision(dat.precision4$padj_0.5, dat.precision4$fc_0.5),
+Metrics::precision(dat.precision4$padj_0.6, dat.precision4$fc_0.5), 
+Metrics::precision(dat.precision4$padj_0.7, dat.precision4$fc_0.5),
+Metrics::precision(dat.precision4$padj_0.8, dat.precision4$fc_0.5),
+Metrics::precision(dat.precision4$padj_0.9, dat.precision4$fc_0.5),
+Metrics::precision(dat.precision4$padj_1, dat.precision4$fc_0.5))
+))
+
+colnames(df) <- c("FC 0.1","FC 0.2","FC 0.3", "FC 0.4", "FC 0.5")
+rownames(df) <- c("Padj_BH 0.1", "Padj_BH 0.2", "Padj_BH 0.3", "Padj_BH 0.4", "Padj_BH 0.5", "Padj_BH 0.6", "Padj_BH 0.7", "Padj_BH 0.8", "Padj_BH 0.9", "Padj_BH 1")
+
+df2 <- df %>%
+  rownames_to_column() %>%
+  gather(colname, value, -rowname)
+head(df2)
+
+ggplot(df2, aes(x = rowname, y = colname, fill = value)) +
+  geom_tile() + geom_text(aes(label = round(value, digit=2))) + xlab("Max log p-value Benjamini-Hochberg adjustment") + ylab("Max absolute value fold change") + ggtitle("Precision heatmap for Fold Change") + 
+  scale_fill_gradient(low = "gold", high = "firebrick2") +
+  coord_fixed()
+
+```
+
+
+###########################################
+
+Specific for high pics values
+
+###########################################
+
+Loading the MPRA data (this is the August 25th primary T cell using the T cell filter)
+```{r, eval=FALSE, echo=FALSE}
+mpra.dir <- "/nfs/jray/screens/Mouri_et_al_MPRA/Mouri_et_al_replication/Mouri_replication_rmds/20230825_stimulated_primary_Tcell_glm_replication/john_filter/data/20230825_mpra_merge_Tcell_glm_john.txt"
+mpra <- read.table(mpra.dir, sep="\t", header=T)
+```
+
+This runs a loop to find the max fold changes.
+```{r, eval=FALSE, echo=FALSE}
+#For each MPRA variant, find the fold change of the allele with the largest absolute fold change
+# This creates a column full of NAs for the loop to fill
+mpra$max_abs_fc <- NA
+# This loop calculates the column of max_abs_fc. It takes the two alleles A and B and calculates which one's absolute value is larger. That larger value is the value of the new column (can be positive or negative). 
+for(i in 1:nrow(mpra)){
+  if(abs(mpra[i,]$A.log2FC)>abs(mpra[i,]$B.log2FC)){
+    mpra[i,]$max_abs_fc<-mpra[i,]$A.log2FC
+  }else{
+    mpra[i,]$max_abs_fc<-mpra[i,]$B.log2FC
+  }
+}
+```
+
+This runs a loop to find the max fold change p values.
+```{r, eval=FALSE, echo=FALSE}
+#For each MPRA variant, find the fold change of the allele with the largest absolute fold change
+# This creates a column full of NAs for the loop to fill
+mpra$max.logPadj_BH<-NA
+# This loop calculates the column of max_abs_fc. It takes the two alleles A and B and calculates which one's absolute value is larger. That larger value is the value of the new column (can be positive or negative). 
+for(i in 1:nrow(mpra)){
+  if(abs(mpra[i,]$A.logPadj_BH)>abs(mpra[i,]$B.logPadj_BH)){
+    mpra[i,]$max.logPadj_BH<-mpra[i,]$A.logPadj_BH
+  }else{
+    mpra[i,]$max.logPadj_BH<-mpra[i,]$B.logPadj_BH
+  }
+}
+```
+
+```{r, eval=FALSE, echo=FALSE}
+#For each MPRA variant, find the pics for all the diseases and make max_pics the maximum of all of those values
+mpra.pics <- subset(mpra, select=c(MS_pics,RA_pics,UC_pics,T1D_pics,IBD_pics,Crohns_pics,Psoriasis_pics))
+
+# Make the NAs for pics -1
+mpra.pics$MS_pics[is.na(mpra.pics$MS_pics)]<- (-1)
+mpra.pics$RA_pics[is.na(mpra.pics$RA_pics)]<- (-1)
+mpra.pics$UC_pics[is.na(mpra.pics$UC_pics)]<- (-1)
+mpra.pics$IBD_pics[is.na(mpra.pics$IBD_pics)]<- (-1)
+mpra.pics$T1D_pics[is.na(mpra.pics$T1D_pics)]<- (-1)
+mpra.pics$Crohns_pics[is.na(mpra.pics$Crohns_pics)]<- (-1)
+mpra.pics$Psoriasis_pics[is.na(mpra.pics$Psoriasis_pics)]<- (-1)
+colnames(mpra.pics)
+mpra.pics$win_pics <- colnames(mpra.pics)[apply(mpra.pics,1,which.max)] # Make a column that is called win_pics which will give me the name of the pics column with the best 
+
+mpra.pics$max_pics <- NA # This creates a column full of NAs for the loop to fill
+
+for(i in 1:nrow(mpra.pics)){
+  if(mpra.pics[i,]$win_pics=="MS_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$MS_pics
+  } # if win_pics says MS_pics then the max_pics is MS_pics
+  if(mpra.pics[i,]$win_pics=="RA_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$RA_pics
+  } # if win_pics says RA_pics then the max_pics is RA_pics
+  if(mpra.pics[i,]$win_pics=="UC_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$UC_pics
+  } # if win_pics says UC_pics then the max_pics is UC_pics
+  if(mpra.pics[i,]$win_pics=="IBD_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$IBD_pics
+  } # if win_pics says IBD_pics then the max_pics is IBD_pics
+  if(mpra.pics[i,]$win_pics=="Crohns_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$Crohns_pics
+  } # if win_pics says Crohns_pics then the max_pics is Crohns_pics
+  if(mpra.pics[i,]$win_pics=="Psoriasis_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$Psoriasis_pics
+  } # if win_pics says Psoriasis_pics then the max_pics is Psoriasis_pics
+   if(mpra.pics[i,]$win_pics=="T1D_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$T1D_pics
+  } # if win_pics says T1D_pics then the max_pics is T1D_pics
+}
+
+# Make the MPRA pics columns which are NA return to NA
+mpra.pics$MS_pics[mpra.pics$MS_pics<0]<- NA
+mpra.pics$RA_pics[mpra.pics$RA_pics<0]<- NA
+mpra.pics$UC_pics[mpra.pics$UC_pics<0]<- NA
+mpra.pics$IBD_pics[mpra.pics$IBD_pics<0]<- NA
+mpra.pics$T1D_pics[mpra.pics$T1D_pics<0]<- NA
+mpra.pics$Crohns_pics[mpra.pics$Crohns_pics<0]<- NA
+mpra.pics$Psoriasis_pics[mpra.pics$Psoriasis_pics<0]<- NA
+
+```
+
+Add max_pics and subset the mpra data to only high pics scores
+```{r, eval=FALSE, echo=FALSE}
+mpra$max_pics <- mpra.pics$max_pics
+mpra <- subset(mpra, max_pics>=0.5)
+```
+
+Loop to give zeros and ones based on fc values
+```{r, eval=FALSE, echo=FALSE}
+a <- NULL
+dat.precision<- data.frame(abs(mpra$max_abs_fc)) # create a data frame with max.logPadj_BH and max_abs_fc 
+a[1:20] <- data.frame(rep.int(0, 173)) # create a data frame of zeros
+dat.precision2 <- data.frame(dat.precision,a) # add the max.logPadj_BH and max_abs_fc columns
+names(dat.precision2) <- c("fc",paste0("fc_", seq(0.1, 2, by = 0.1))) # give names to the columns
+dat.precision2 <- dat.precision2[,-22]
+
+dat.precision2 <- dat.precision2 |>
+  mutate(row = row_number()) |> # not necessary if `fc` values guaranteed unique
+  pivot_longer(-c(row, fc)) |>
+  mutate(value = 1 * (parse_number(name) <= fc)) |>
+  pivot_wider(names_from = name, values_from = value)
+```
+
+Loop to give zeros and ones based on padj values
+```{r, eval=FALSE, echo=FALSE}
+dat.precision3<- data.frame(mpra$max.logPadj_BH) # create a data frame with max.logPadj_BH 
+a <- c(0,0,0)
+a[1:20] <- data.frame(rep.int(0, 173)) # create b data frame of zeros
+dat.precision3 <- data.frame(dat.precision3,a) # add the max.logPadj_BH and max_abs_fc columns
+names(dat.precision3) <- c("padj",paste0("padj_", seq(0.1, 2, by = 0.1))) # give names to the columns
+
+dat.precision3 <- dat.precision3 |>
+  mutate(row = row_number()) |> # not necessary if `padj` values guaranteed unique
+  pivot_longer(-c(row, padj)) |>
+  mutate(value = 1 * (parse_number(name) <= padj)) |>
+  pivot_wider(names_from = name, values_from = value)
+```
+
+Merge the two data frames
+```{r, eval=FALSE, echo=FALSE}
+dat.precision4 <- merge(dat.precision2, dat.precision3, by="row")
+dat.precision4 <- dat.precision4[,-1]
+```
+
+Calculating the precision values and then creating a heat map
+```{r, eval=FALSE, echo=FALSE}
+df <- data.frame(cbind(
+c(Metrics::precision(dat.precision4$padj_0.1, dat.precision4$fc_0.1), 
+Metrics::precision(dat.precision4$padj_0.2, dat.precision4$fc_0.1),
+Metrics::precision(dat.precision4$padj_0.3, dat.precision4$fc_0.1),
+Metrics::precision(dat.precision4$padj_0.4, dat.precision4$fc_0.1),
+Metrics::precision(dat.precision4$padj_0.5, dat.precision4$fc_0.1),
+Metrics::precision(dat.precision4$padj_0.6, dat.precision4$fc_0.1), 
+Metrics::precision(dat.precision4$padj_0.7, dat.precision4$fc_0.1),
+Metrics::precision(dat.precision4$padj_0.8, dat.precision4$fc_0.1),
+Metrics::precision(dat.precision4$padj_0.9, dat.precision4$fc_0.1),
+Metrics::precision(dat.precision4$padj_1, dat.precision4$fc_0.1)),
+
+c(Metrics::precision(dat.precision4$padj_0.1, dat.precision4$fc_0.2), 
+Metrics::precision(dat.precision4$padj_0.2, dat.precision4$fc_0.2),
+Metrics::precision(dat.precision4$padj_0.3, dat.precision4$fc_0.2),
+Metrics::precision(dat.precision4$padj_0.4, dat.precision4$fc_0.2),
+Metrics::precision(dat.precision4$padj_0.5, dat.precision4$fc_0.2),
+Metrics::precision(dat.precision4$padj_0.6, dat.precision4$fc_0.2), 
+Metrics::precision(dat.precision4$padj_0.7, dat.precision4$fc_0.2),
+Metrics::precision(dat.precision4$padj_0.8, dat.precision4$fc_0.2),
+Metrics::precision(dat.precision4$padj_0.9, dat.precision4$fc_0.2),
+Metrics::precision(dat.precision4$padj_1, dat.precision4$fc_0.2)),
+
+c(Metrics::precision(dat.precision4$padj_0.1, dat.precision4$fc_0.3), 
+Metrics::precision(dat.precision4$padj_0.2, dat.precision4$fc_0.3),
+Metrics::precision(dat.precision4$padj_0.3, dat.precision4$fc_0.3),
+Metrics::precision(dat.precision4$padj_0.4, dat.precision4$fc_0.3),
+Metrics::precision(dat.precision4$padj_0.5, dat.precision4$fc_0.3),
+Metrics::precision(dat.precision4$padj_0.6, dat.precision4$fc_0.3), 
+Metrics::precision(dat.precision4$padj_0.7, dat.precision4$fc_0.3),
+Metrics::precision(dat.precision4$padj_0.8, dat.precision4$fc_0.3),
+Metrics::precision(dat.precision4$padj_0.9, dat.precision4$fc_0.3),
+Metrics::precision(dat.precision4$padj_1, dat.precision4$fc_0.3)),
+
+c(Metrics::precision(dat.precision4$padj_0.1, dat.precision4$fc_0.4), 
+Metrics::precision(dat.precision4$padj_0.2, dat.precision4$fc_0.4),
+Metrics::precision(dat.precision4$padj_0.3, dat.precision4$fc_0.4),
+Metrics::precision(dat.precision4$padj_0.4, dat.precision4$fc_0.4),
+Metrics::precision(dat.precision4$padj_0.5, dat.precision4$fc_0.4),
+Metrics::precision(dat.precision4$padj_0.6, dat.precision4$fc_0.4), 
+Metrics::precision(dat.precision4$padj_0.7, dat.precision4$fc_0.4),
+Metrics::precision(dat.precision4$padj_0.8, dat.precision4$fc_0.4),
+Metrics::precision(dat.precision4$padj_0.9, dat.precision4$fc_0.4),
+Metrics::precision(dat.precision4$padj_1, dat.precision4$fc_0.4)),
+
+c(Metrics::precision(dat.precision4$padj_0.1, dat.precision4$fc_0.5), 
+Metrics::precision(dat.precision4$padj_0.2, dat.precision4$fc_0.5),
+Metrics::precision(dat.precision4$padj_0.3, dat.precision4$fc_0.5),
+Metrics::precision(dat.precision4$padj_0.4, dat.precision4$fc_0.5),
+Metrics::precision(dat.precision4$padj_0.5, dat.precision4$fc_0.5),
+Metrics::precision(dat.precision4$padj_0.6, dat.precision4$fc_0.5), 
+Metrics::precision(dat.precision4$padj_0.7, dat.precision4$fc_0.5),
+Metrics::precision(dat.precision4$padj_0.8, dat.precision4$fc_0.5),
+Metrics::precision(dat.precision4$padj_0.9, dat.precision4$fc_0.5),
+Metrics::precision(dat.precision4$padj_1, dat.precision4$fc_0.5))
+))
+
+colnames(df) <- c("FC 0.1","FC 0.2","FC 0.3", "FC 0.4", "FC 0.5")
+rownames(df) <- c("Padj_BH 0.1", "Padj_BH 0.2", "Padj_BH 0.3", "Padj_BH 0.4", "Padj_BH 0.5", "Padj_BH 0.6", "Padj_BH 0.7", "Padj_BH 0.8", "Padj_BH 0.9", "Padj_BH 1")
+
+df2 <- df %>%
+  rownames_to_column() %>%
+  gather(colname, value, -rowname)
+head(df2)
+
+ggplot(df2, aes(x = rowname, y = colname, fill = value)) +
+  geom_tile() + geom_text(aes(label = round(value, digit=2))) + xlab("Max log p-value Benjamini-Hochberg adjustment") + ylab("Max absolute value fold change") + ggtitle("Precision heatmap for Fold Change") + 
+  scale_fill_gradient(low = "gold", high = "firebrick2") +
+  coord_fixed()
+```
+
+
+
+########################
+
+Better loops but not quite correct
+
+########################
+
+
+Loading the MPRA data (this is the August 25th primary T cell using the T cell filter)
+```{r}
+mpra.dir <- "/nfs/jray/screens/Mouri_et_al_MPRA/Mouri_et_al_replication/Mouri_replication_rmds/20230825_stimulated_primary_Tcell_glm_replication/john_filter/data/20230825_mpra_merge_Tcell_glm_john.txt"
+mpra <- read.table(mpra.dir, sep="\t", header=T)
+```
+
+This runs a loop to find the max fold changes.
+```{r}
+#For each MPRA variant, find the fold change of the allele with the largest absolute fold change
+# This creates a column full of NAs for the loop to fill
+mpra$max_abs_fc <- NA
+# This loop calculates the column of max_abs_fc. It takes the two alleles A and B and calculates which one's absolute value is larger. That larger value is the value of the new column (can be positive or negative). 
+for(i in 1:nrow(mpra)){
+  if(abs(mpra[i,]$A.log2FC)>abs(mpra[i,]$B.log2FC)){
+    mpra[i,]$max_abs_fc<-mpra[i,]$A.log2FC
+  }else{
+    mpra[i,]$max_abs_fc<-mpra[i,]$B.log2FC
+  }
+}
+```
+
+This runs a loop to find the max fold change p values with the Benjamini Hochberg correction.
+```{r}
+#For each MPRA variant, find the fold change of the allele with the largest absolute fold change
+# This creates a column full of NAs for the loop to fill
+mpra$max.logPadj_BH<-NA
+# This loop calculates the column of max_abs_fc. It takes the two alleles A and B and calculates which one's absolute value is larger. That larger value is the value of the new column (can be positive or negative). 
+for(i in 1:nrow(mpra)){
+  if(abs(mpra[i,]$A.logPadj_BH)>abs(mpra[i,]$B.logPadj_BH)){
+    mpra[i,]$max.logPadj_BH<-mpra[i,]$A.logPadj_BH
+  }else{
+    mpra[i,]$max.logPadj_BH<-mpra[i,]$B.logPadj_BH
+  }
+}
+```
+
+This runs a loop to find the max fold change p values with the bonferroni correction.
+```{r}
+#For each MPRA variant, find the fold change of the allele with the largest absolute fold change
+# This creates a column full of NAs for the loop to fill
+mpra$max.logPadj_BF<-NA
+# This loop calculates the column of max_abs_fc. It takes the two alleles A and B and calculates which one's absolute value is larger. That larger value is the value of the new column (can be positive or negative). 
+for(i in 1:nrow(mpra)){
+  if(abs(mpra[i,]$A.logPadj_BF)>abs(mpra[i,]$B.logPadj_BF)){
+    mpra[i,]$max.logPadj_BF<-mpra[i,]$A.logPadj_BF
+  }else{
+    mpra[i,]$max.logPadj_BF<-mpra[i,]$B.logPadj_BF
+  }
+}
+```
+
+
+```{r}
+#For each MPRA variant, find the pics for all the diseases and make max_pics the maximum of all of those values
+mpra.pics <- subset(mpra, select=c(MS_pics,RA_pics,UC_pics,T1D_pics,IBD_pics,Crohns_pics,Psoriasis_pics))
+
+# Make the NAs for pics -1
+mpra.pics$MS_pics[is.na(mpra.pics$MS_pics)]<- (-1)
+mpra.pics$RA_pics[is.na(mpra.pics$RA_pics)]<- (-1)
+mpra.pics$UC_pics[is.na(mpra.pics$UC_pics)]<- (-1)
+mpra.pics$IBD_pics[is.na(mpra.pics$IBD_pics)]<- (-1)
+mpra.pics$T1D_pics[is.na(mpra.pics$T1D_pics)]<- (-1)
+mpra.pics$Crohns_pics[is.na(mpra.pics$Crohns_pics)]<- (-1)
+mpra.pics$Psoriasis_pics[is.na(mpra.pics$Psoriasis_pics)]<- (-1)
+colnames(mpra.pics)
+mpra.pics$win_pics <- colnames(mpra.pics)[apply(mpra.pics,1,which.max)] # Make a column that is called win_pics which will give me the name of the pics column with the best 
+
+mpra.pics$max_pics <- NA # This creates a column full of NAs for the loop to fill
+
+for(i in 1:nrow(mpra.pics)){
+  if(mpra.pics[i,]$win_pics=="MS_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$MS_pics
+  } # if win_pics says MS_pics then the max_pics is MS_pics
+  if(mpra.pics[i,]$win_pics=="RA_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$RA_pics
+  } # if win_pics says RA_pics then the max_pics is RA_pics
+  if(mpra.pics[i,]$win_pics=="UC_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$UC_pics
+  } # if win_pics says UC_pics then the max_pics is UC_pics
+  if(mpra.pics[i,]$win_pics=="IBD_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$IBD_pics
+  } # if win_pics says IBD_pics then the max_pics is IBD_pics
+  if(mpra.pics[i,]$win_pics=="Crohns_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$Crohns_pics
+  } # if win_pics says Crohns_pics then the max_pics is Crohns_pics
+  if(mpra.pics[i,]$win_pics=="Psoriasis_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$Psoriasis_pics
+  } # if win_pics says Psoriasis_pics then the max_pics is Psoriasis_pics
+   if(mpra.pics[i,]$win_pics=="T1D_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$T1D_pics
+  } # if win_pics says T1D_pics then the max_pics is T1D_pics
+}
+
+# Make the MPRA pics columns which are NA return to NA
+mpra.pics$MS_pics[mpra.pics$MS_pics<0]<- NA
+mpra.pics$RA_pics[mpra.pics$RA_pics<0]<- NA
+mpra.pics$UC_pics[mpra.pics$UC_pics<0]<- NA
+mpra.pics$IBD_pics[mpra.pics$IBD_pics<0]<- NA
+mpra.pics$T1D_pics[mpra.pics$T1D_pics<0]<- NA
+mpra.pics$Crohns_pics[mpra.pics$Crohns_pics<0]<- NA
+mpra.pics$Psoriasis_pics[mpra.pics$Psoriasis_pics<0]<- NA
+
+```
+
+```{r}
+mpra$max_pics <- mpra.pics$max_pics
+#mpra <- subset(mpra, max_pics>=0.5)
+```
+
+John's heat map. This is wrong. Why?
+```{r}
+skew<-c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
+FDR<-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+output3<-NULL
+for(s in skew){
+  for(f in FDR){
+    cur_results<- mpra[,c("rsid","Skew.logFDR","LogSkew","max_abs_fc","max.logPadj_BH","max_pics")] 
+    cur_results$Skew_FDR<-10^-cur_results$Skew.logFDR # undo log transform of FDR
+    cur_results$Skew<-2^(cur_results$LogSkew) # Undo log transform of Skew
+    cur_results2<-cur_results %>% filter(Skew.logFDR<f) # filter results to be less than the FDR threshold
+    nrow_skew_emVar<-nrow(cur_results2 %>% filter(Skew>=s & max_pics>=0.1)) # Filter for nrow_skew_emVar is to be greater than the FDR and skew threshold and greater than the high pics threshold
+    non_pics<-cur_results %>% filter(max_pics<=0.001) # Filter non_pics is to be less than the low pics threshold
+    sampled_non_pics<-non_pics[sample(nrow(non_pics), size=nrow_skew_emVar),] # What is happening here?
+    nrow_Skew_non_emVar<-nrow(sampled_non_pics%>% filter(Skew>=s))
+    all_top_PICS<-nrow(cur_results %>% filter(max_pics>=0.1))
+    precision<-nrow_skew_emVar/(nrow_Skew_non_emVar+nrow_skew_emVar)
+    recall<-nrow_skew_emVar/all_top_PICS
+    output3<-rbind(output3, data.frame(f, s, precision, recall, nrow_skew_emVar, nrow_Skew_non_emVar, all_top_PICS))
+  }
+}
+
+ggplot(output3, aes(x=as.character(f), y=as.character(s), fill=precision)) + geom_tile() +  ggtitle("Precision_fixed_negative") + xlab("Skew FDR") + ylab("Skew") + geom_text(aes(label=(round(precision, 2))), color="white", size=4) + 
+  scale_fill_gradient(low = "gold", high = "firebrick2")
+# ggsave("230425_precision_plot_pics0.9.pdf") # why do I got na's e?
+ggplot(output3, aes(x=as.character(f), y=as.character(s), fill=recall)) + geom_tile() +  ggtitle("Recall") + xlab("Skew FDR") + ylab("Skew") + geom_text(aes(label=(round(recall, 2))), color="black", size=4) + 
+  scale_fill_gradient(low = "gold", high = "firebrick2") 
+# ggsave("230425_recall_plot_pics0.9.pdf")
+```
+
+Max's FC heat map. This is wrong. Why?
+```{r}
+fc_seq <-c(0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3)
+FDR_seq <-c(0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 1)
+#FDR_seq <- seq(0.1, 2, by = 0.1)
+#fc_seq <- seq(0.1, 2, by = 0.25)
+precision.dat <- NULL
+for( i in FDR_seq){
+  for(j in fc_seq){
+   mpra_subset <- subset(mpra, select=c(Skew.logFDR,LogSkew,max_abs_fc,max.logPadj_BH,max_pics))
+   FDR_subset <- subset(mpra_subset, Skew.logFDR >= i)
+   fc_subset <- subset(FDR_subset, max_abs_fc > j)
+   false_positive <- nrow(subset(fc_subset, max_pics<=0.001))
+   true_postive <- nrow(subset(fc_subset, max_pics>=0.5))
+   precision <- true_postive/(true_postive+false_positive)
+   precision.dat <- rbind(precision.dat, data.frame(i, j, precision, true_postive,false_positive))
+  }
+}
+names(precision.dat) <- c("FDR", "FC", "precision", "emVar", "non_Emvar")
+
+ggplot(precision.dat, aes(x = as.character(FDR), y = as.character(FC), fill = precision)) +
+  geom_tile() + geom_text(aes(label = round(precision, digit=2))) + xlab("Log Skew FDR p-value") + ylab("Max absolute value fold change") + ggtitle("Precision heatmap for Fold Change") + 
+  scale_fill_gradient(low = "gold", high = "firebrick2") 
+```

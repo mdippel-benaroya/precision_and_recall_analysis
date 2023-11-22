@@ -1,0 +1,140 @@
+---
+title: "20231122 max columns mpra merge"
+output: html_document
+author: Max Dippel
+date: "2023-11-22"
+---
+
+4 MPRA merge files
+
+1. 20231115 Tcell
+
+2. 20231115 Jurkat
+
+3. 20231115 Stim jurkat
+
+4. 20231115 GM12878
+
+```{r}
+mpra.dir <- "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/20231115_Tcell_glm_replication/data/20231115_Tcell_emVar_glm_mpra_merge_john_filter.txt"
+# mpra.dir <- "20231115_unstim_jurkat_glm_mpra_merge_Mouri_filter"
+# mpra.dir <- ""
+# mpra.dir <- ""
+mpra <- read.table(mpra.dir, sep="\t", header=T)
+```
+
+# Special Columns 
+
+This runs a loop to find the max fold changes.
+```{r max FC column, eval=FALSE}
+#For each MPRA variant, find the fold change of the allele with the largest absolute fold change
+# This creates a column full of NAs for the loop to fill
+mpra$max_abs_fc <- NA
+# This loop calculates the column of max_abs_fc. It takes the two alleles A and B and calculates which one's absolute value is larger. That larger value is the value of the new column (can be positive or negative). 
+for(i in 1:nrow(mpra)){
+  if(abs(mpra[i,]$A.log2FC)>abs(mpra[i,]$B.log2FC)){
+    mpra[i,]$max_abs_fc<-mpra[i,]$A.log2FC
+  }else{
+    mpra[i,]$max_abs_fc<-mpra[i,]$B.log2FC
+  }
+}
+```
+
+This runs a loop to find the max fold change p values with the Benjamini Hochberg correction.
+```{r max BH column, eval=FALSE}
+#For each MPRA variant, find the fold change of the allele with the largest absolute fold change
+# This creates a column full of NAs for the loop to fill
+mpra$max.logPadj_BH<-NA
+# This loop calculates the column of max_abs_fc. It takes the two alleles A and B and calculates which one's absolute value is larger. That larger value is the value of the new column (can be positive or negative). 
+for(i in 1:nrow(mpra)){
+  if(abs(mpra[i,]$A.logPadj_BH)>abs(mpra[i,]$B.logPadj_BH)){
+    mpra[i,]$max.logPadj_BH<-mpra[i,]$A.logPadj_BH
+  }else{
+    mpra[i,]$max.logPadj_BH<-mpra[i,]$B.logPadj_BH
+  }
+}
+```
+
+This runs a loop to find the max fold change p values with the bonferroni correction.
+```{r max BF column, eval=FALSE}
+#For each MPRA variant, find the fold change of the allele with the largest absolute fold change
+# This creates a column full of NAs for the loop to fill
+mpra$max.logPadj_BF<-NA
+# This loop calculates the column of max_abs_fc. It takes the two alleles A and B and calculates which one's absolute value is larger. That larger value is the value of the new column (can be positive or negative). 
+for(i in 1:nrow(mpra)){
+  if(abs(mpra[i,]$A.logPadj_BF)>abs(mpra[i,]$B.logPadj_BF)){
+    mpra[i,]$max.logPadj_BF<-mpra[i,]$A.logPadj_BF
+  }else{
+    mpra[i,]$max.logPadj_BF<-mpra[i,]$B.logPadj_BF
+  }
+}
+```
+
+
+```{r max pics column, eval=FALSE}
+#For each MPRA variant, find the pics for all the diseases and make max_pics the maximum of all of those values
+mpra.pics <- subset(mpra, select=c(MS_pics,RA_pics,UC_pics,T1D_pics,IBD_pics,Crohns_pics,Psoriasis_pics))
+
+# Make the NAs for pics -1
+mpra.pics$MS_pics[is.na(mpra.pics$MS_pics)]<- (-1)
+mpra.pics$RA_pics[is.na(mpra.pics$RA_pics)]<- (-1)
+mpra.pics$UC_pics[is.na(mpra.pics$UC_pics)]<- (-1)
+mpra.pics$IBD_pics[is.na(mpra.pics$IBD_pics)]<- (-1)
+mpra.pics$T1D_pics[is.na(mpra.pics$T1D_pics)]<- (-1)
+mpra.pics$Crohns_pics[is.na(mpra.pics$Crohns_pics)]<- (-1)
+mpra.pics$Psoriasis_pics[is.na(mpra.pics$Psoriasis_pics)]<- (-1)
+colnames(mpra.pics)
+mpra.pics$win_pics <- colnames(mpra.pics)[apply(mpra.pics,1,which.max)] # Make a column that is called win_pics which will give me the name of the pics column with the best 
+
+mpra.pics$max_pics <- NA # This creates a column full of NAs for the loop to fill
+
+for(i in 1:nrow(mpra.pics)){
+  if(mpra.pics[i,]$win_pics=="MS_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$MS_pics
+  } # if win_pics says MS_pics then the max_pics is MS_pics
+  if(mpra.pics[i,]$win_pics=="RA_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$RA_pics
+  } # if win_pics says RA_pics then the max_pics is RA_pics
+  if(mpra.pics[i,]$win_pics=="UC_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$UC_pics
+  } # if win_pics says UC_pics then the max_pics is UC_pics
+  if(mpra.pics[i,]$win_pics=="IBD_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$IBD_pics
+  } # if win_pics says IBD_pics then the max_pics is IBD_pics
+  if(mpra.pics[i,]$win_pics=="Crohns_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$Crohns_pics
+  } # if win_pics says Crohns_pics then the max_pics is Crohns_pics
+  if(mpra.pics[i,]$win_pics=="Psoriasis_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$Psoriasis_pics
+  } # if win_pics says Psoriasis_pics then the max_pics is Psoriasis_pics
+   if(mpra.pics[i,]$win_pics=="T1D_pics"){
+    mpra.pics[i,]$max_pics<-mpra.pics[i,]$T1D_pics
+  } # if win_pics says T1D_pics then the max_pics is T1D_pics
+}
+
+# Make the MPRA pics columns which are NA return to NA
+mpra.pics$MS_pics[mpra.pics$MS_pics<0]<- NA
+mpra.pics$RA_pics[mpra.pics$RA_pics<0]<- NA
+mpra.pics$UC_pics[mpra.pics$UC_pics<0]<- NA
+mpra.pics$IBD_pics[mpra.pics$IBD_pics<0]<- NA
+mpra.pics$T1D_pics[mpra.pics$T1D_pics<0]<- NA
+mpra.pics$Crohns_pics[mpra.pics$Crohns_pics<0]<- NA
+mpra.pics$Psoriasis_pics[mpra.pics$Psoriasis_pics<0]<- NA
+
+```
+
+```{r, echo=FALSE, eval=FALSE, echo=FALSE}
+if(filter == "none" & mpra_name == "20230518_unstimulated_jurkat_glm"){
+mpra$A.log2FC[mpra$A.log2FC==0] <- NA
+mpra$B.log2FC[mpra$B.log2FC==0] <- NA
+mpra$A.logPadj_BH[mpra$A.logPadj_BH==0] <- NA
+mpra$B.logPadj_BH[mpra$B.logPadj_BH==0]<- NA
+mpra$A.logPadj_BF[mpra$A.logPadj_BF==0]<- NA
+mpra$B.logPadj_BF[mpra$B.logPadj_BF==0]<- NA
+}
+```
+
+```{r, eval=FALSE}
+mpra$max_pics <- mpra.pics$max_pics
+```
+

@@ -161,6 +161,12 @@ How many variants in this version of MPRA have a maximum pics value of greater t
 nrow(subset(mpra, max_pics>=0.5))
 ```
 
+
+```{r}
+# write.table(mpra, paste0("/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/data/20230825_Tcell_glm_john_mpra_merge_max_columns"), row.names=F, col.names=T, sep="\t", quote=F)
+```
+
+
 # DHS overlap 
 
 Bring in DHS data for CD4 T-cells
@@ -183,6 +189,7 @@ Give MPRA a strand column
 mpra$strand<-"+"
 ```
 
+mpra_sig loop
 ```{r}
 #Manually temporarily set these FDRs and adjusted p-values that are NA to -1 for easier TRUE/FALSE testing
 mpra$Skew.logFDR[is.na(mpra$Skew.logFDR)]<- (-1)
@@ -200,7 +207,42 @@ for(i in 1:nrow(mpra)){
 #Set those -1 FDRs and p-values back to NA
 mpra$Skew.logFDR[mpra$Skew.logFDR<0]<- NA
 mpra$max.logPadj_BH[mpra$max.logPadj_BH<0]<- NA
+
+nrow(subset(mpra, mpra_sig=="nEnhancer_nSkew"))
+nrow(subset(mpra, mpra_sig=="Enhancer_nSkew"))
+nrow(subset(mpra, mpra_sig=="Enhancer_Skew"))
 ```
+
+
+New and improved loop (does not work)
+```{r}
+mpra$Skew.logFDR[is.na(mpra$Skew.logFDR)]<- (-1)
+mpra$A.logPadj_BH[is.na(mpra$A.logPadj_BH)]<- (-1)
+mpra$B.logPadj_BH[is.na(mpra$B.logPadj_BH)]<- (-1)
+mpra$A.log2FC[is.na(mpra$A.log2FC)]<- (-1)
+
+system.time(
+mpra$mpra_sig <- apply(mpra, 1, function(row) {
+  if (row["Skew.logFDR"] > 1 && (row["A.logPadj_BH"] > 1 && row["A.log2FC"] > 1)) {
+    return("Enhancer_Skew")
+  } else if (row["Skew.logFDR"] <= 1 && (row["A.logPadj_BH"] > 1 && row["A.log2FC"] > 1)) {
+    return("Enhancer_nSkew")
+  }
+  return("nEnhancer_nSkew")
+})
+)
+
+#Set those -1 FDRs and p-values back to NA
+mpra$Skew.logFDR[mpra$Skew.logFDR<0]<- NA
+mpra$A.logPadj_BH[mpra$A.logPadj_BH<0]<- NA
+mpra$B.logPadj_BH[mpra$B.logPadj_BH<0]<- NA
+mpra$A.log2FC[mpra$A.log2FC<0]<- NA
+
+nrow(subset(mpra, mpra_sig=="nEnhancer_nSkew"))
+nrow(subset(mpra, mpra_sig=="Enhancer_nSkew"))
+nrow(subset(mpra, mpra_sig=="Enhancer_Skew"))
+```
+
 
 original loop
 ```{r, eval=FALSE, echo=FALSE}
@@ -264,6 +306,7 @@ for(i in 1:nrow(dat.plot)){
 }
 dat.plot$pcre_p
 
+dat.plot$pcre_fold
 ```
 
 improved loop
@@ -341,6 +384,8 @@ for(i in 1:nrow(dat.plot)){
 }
 dat.plot$pcre_p
 ```
+
+
 
 
 # Loop for CD4 DHS enrichment data 

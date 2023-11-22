@@ -1,0 +1,79 @@
+---
+title: "DHS and precision comparison"
+output: html_document
+author: Max Dippel
+date: "2023-11-07"
+---
+
+This html compares the precision plots from precision and recall heat maps and the DHS heat maps. 
+
+Precision is the fraction of relevant instances divided by all retrieved instances. This is also called the positive predictive value. 
+
+Precision = True Positives / (True Positives + False Positives)
+
+This html will give precision and recall plots for these parameters: 
+
+X-axis: always Skew FDR
+
+Y-axis: Skew, Max Allele Fold Change, Fold Change p-value with Benjamhini Hochberg correction and Fold Change p-value with Bonferroni correction
+
+To calculate the true_positives and false_positives we use these thresholds:
+
+True Positive: max_pics>=0.5
+
+FalsePositive: max_pics<=0.001
+
+The DHS plots use the pcre_p for CD4 DHS as the fill instead of precision. In the ranked p-value plot, we can see the single value for CD4 DHS based on a single pCRE filter. This is the fill for these heatmaps, but instead of multiple cell types, we change the pCRE filter for every tile. The filter for every tile can be seen on the axes. For example, the first plot has a pCRE filter of Max log10 Padj BH > x & max abs fc > y. 
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=15}
+library(cowplot)
+library(ggplot2)
+library(magick)
+library(gridExtra)
+library(grid)
+library("ggplotify")
+```
+
+
+```{r, echo=FALSE, fig.width=15}
+# ![**](plots/dhs_pval_graphic.png){width=px}
+# ![*FC Adj CD4 DHS heat map*](plots/FC_AdjP_CD4_DHS_heat_map.png){width=px}
+dhs_pval <- ggdraw() + draw_image("plots/dhs_pval_graphic.png", scale = 1)
+FC_AdjP_DHS_heatmap <- ggdraw() + draw_image("plots/FC_AdjP_CD4_DHS_heat_map.png", scale = 1)
+
+plot_grid(dhs_pval, FC_AdjP_DHS_heatmap) 
+```
+
+
+```{r, echo=FALSE, fig.width=15}
+Skew_FDR_CD4_DHS_heat_map <- ggdraw() + draw_image("plots/Skew_FDR_CD4_DHS_heat_map.png", scale = 1)
+Skew_FDR_precision <- ggdraw() + draw_image("plots/Skew_FDR_precision.png", scale = 1)
+
+plot_grid(Skew_FDR_CD4_DHS_heat_map, Skew_FDR_precision) 
+```
+
+
+
+```{r, echo=FALSE, fig.width=15}
+# ![*FC FDR CD4 DHS enrichment heat map*](plots/FC_FDR_precision.png){width=px}
+FC_FDR_CD4_DHS_heat_map <- ggdraw() + draw_image("plots/FC_FDR_CD4_DHS_heat_map.png", scale = 1)
+FC_FDR_precision <- ggdraw() + draw_image("plots/FC_FDR_precision.png", scale = 1)
+
+plot_grid(FC_FDR_CD4_DHS_heat_map, FC_FDR_precision) 
+```
+
+```{r, echo=FALSE, fig.width=15}
+BH_FDR_CD4_DHS_heat_map <- ggdraw() + draw_image("plots/BH_FDR_CD4_DHS_heat_map.png", scale = 1)
+BH_FDR_precision <- ggdraw() + draw_image("plots/BH_FDR_precision.png", scale = 1)
+
+plot_grid(BH_FDR_CD4_DHS_heat_map, BH_FDR_precision) 
+```
+
+```{r, echo=FALSE, fig.width=15}
+BF_FDR_CD4_DHS_heat_map <- ggdraw() + draw_image("plots/BF_FDR_CD4_DHS_heat_map.png", scale = 1)
+BF_FDR_precision <- ggdraw() + draw_image("plots/BF_FDR_precision.png", scale = 1)
+
+plot_grid(BF_FDR_CD4_DHS_heat_map, BF_FDR_precision) 
+```
+
