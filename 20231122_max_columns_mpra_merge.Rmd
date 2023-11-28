@@ -16,12 +16,20 @@ date: "2023-11-22"
 4. 20231115 GM12878
 
 ```{r}
-mpra.dir <- "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/20231115_Tcell_glm_replication/data/20231115_Tcell_emVar_glm_mpra_merge_john_filter.txt"
-# mpra.dir <- "20231115_unstim_jurkat_glm_mpra_merge_Mouri_filter"
-# mpra.dir <- ""
-# mpra.dir <- ""
+# mpra.dir <- "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/20231115_Tcell_glm_replication/data/20231115_Tcell_emVar_glm_mpra_merge_john_filter.txt"
+# mpra.dir <- "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/20231115_unstim_jurkat_glm_replication/data/20231115_unstim_jurkat_glm_mpra_merge_Mouri_filter"
+# mpra.dir <- "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/20231115_stimulated_jurkat_glm_replication/data/20231115_stimulated_jurkat_emVar_glm_mpra_merge.txt"
+mpra.dir <- "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/20231115_GM12878_glm_replication/data/20231115_GM12878_glm_john_mpra_merge"
 mpra <- read.table(mpra.dir, sep="\t", header=T)
+
+mpra$A.log2FC[is.na(mpra$A.log2FC)]<- (0)
+mpra$B.log2FC[is.na(mpra$B.log2FC)]<- (0)
+mpra$A.logPadj_BH[is.na(mpra$A.logPadj_BH)]<- (0)
+mpra$B.logPadj_BH[is.na(mpra$B.logPadj_BH)]<- (0)
+mpra$A.logPadj_BF[is.na(mpra$A.logPadj_BF)]<- (0)
+mpra$B.logPadj_BF[is.na(mpra$B.logPadj_BF)]<- (0)
 ```
+
 
 # Special Columns 
 
@@ -123,18 +131,23 @@ mpra.pics$Psoriasis_pics[mpra.pics$Psoriasis_pics<0]<- NA
 
 ```
 
-```{r, echo=FALSE, eval=FALSE, echo=FALSE}
-if(filter == "none" & mpra_name == "20230518_unstimulated_jurkat_glm"){
-mpra$A.log2FC[mpra$A.log2FC==0] <- NA
-mpra$B.log2FC[mpra$B.log2FC==0] <- NA
-mpra$A.logPadj_BH[mpra$A.logPadj_BH==0] <- NA
-mpra$B.logPadj_BH[mpra$B.logPadj_BH==0]<- NA
-mpra$A.logPadj_BF[mpra$A.logPadj_BF==0]<- NA
-mpra$B.logPadj_BF[mpra$B.logPadj_BF==0]<- NA
-}
-```
-
 ```{r, eval=FALSE}
 mpra$max_pics <- mpra.pics$max_pics
+```
+
+```{r}
+# write.table(mpra, paste0("/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/data/20231115_Tcell_glm_mpra_merge_max_columns"), row.names=F, col.names=T, sep="\t", quote=F)
+# write.table(mpra, paste0("/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/data/20231115_unstim_jurkat_glm_mpra_merge_max_columns"), row.names=F, col.names=T, sep="\t", quote=F)
+# write.table(mpra, paste0("/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/data/20231115_stim_jurkat_glm_mpra_merge_max_columns"), row.names=F, col.names=T, sep="\t", quote=F)
+# write.table(mpra, paste0("/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/data/20231115_GM12878_glm_mpra_merge_max_columns"), row.names=F, col.names=T, sep="\t", quote=F)
+```
+
+```{r}
+dhs.merged.dat.all <- read.table("/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/data/dhs.merge.dat.all", sep="\t", header=T)
+names(dhs.merged.dat.all)
+dhs.merged.jurkat <- subset(dhs.merged.dat.all, select=c("seqname","start","end","Jurkat"))
+# write.table(dhs.merged.jurkat, paste0("/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/data/dhs.merged.jurkat.txt"), row.names=F, col.names=T, sep="\t", quote=F)
+dhs.merged.GM12878 <- subset(dhs.merged.dat.all, select=c("seqname","start","end","GM12878"))
+# write.table(dhs.merged.jurkat, paste0("/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/data/dhs.merged.GM12878.txt"), row.names=F, col.names=T, sep="\t", quote=F)
 ```
 
