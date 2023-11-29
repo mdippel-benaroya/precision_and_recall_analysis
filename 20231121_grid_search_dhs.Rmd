@@ -252,7 +252,7 @@ pcre_index<-subset(mpra2, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew") & !is
 non_pcre_index<-subset(mpra2, mpra_sig=="nEnhancer_nSkew" & !is.na(peak_index))$peak_index #peak indices for MPRA non-pCRE SNPs
 
 # This code creates the sample dataframe which in this case is just CD4. It is originally made with all the biosample names. 
-sample.dat <- data.frame(c("jurkat"))
+sample.dat <- data.frame(c("Jurkat"))
 colnames(sample.dat) <- "sample"
 
 # Calculate enrichments of MPRA pCREs in DHS peaks for each cell type
@@ -291,6 +291,8 @@ FC_AdjP_unstim_jurkat_DHS_p_heat_map <- ggplot(data.frame(precision.skew.dat), a
   geom_tile() + geom_text(aes(label = round(-log10(pcre_p), digits = 2))) + xlab("Log10 Adj FC p-value") + ylab("Log2FC") + 
   ggtitle("Unstimulated Jurkat DHS p-value Heat Map") + scale_fill_gradient(low = "gold", high = "firebrick2") 
 FC_AdjP_unstim_jurkat_DHS_p_heat_map
+
+# ggsave("20231127_FC_AdjP_unstim_jurkat_DHS_p_heat_map.png",plot = FC_AdjP_unstim_jurkat_DHS_p_heat_map, path = "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/plots")
 ```
 
 ## Unstimulated jurkat DHS enrichment heat map
@@ -299,9 +301,19 @@ FC_AdjP_unstim_jurkat_DHS_enrichment_heat_map <- ggplot(data.frame(precision.ske
   geom_tile() + geom_text(aes(label = round(pcre_fold, digits = 2))) + xlab("Log10 Adj FC p-value") + ylab("Log2FC") + 
   ggtitle("Unstimulated Jurkat DHS Enrichment Heat Map") + scale_fill_gradient(low = "gold", high = "firebrick2") 
 FC_AdjP_unstim_jurkat_DHS_enrichment_heat_map
+# ggsave("20231127_FC_AdjP_unstim_jurkat_DHS_enrichment_heat_map.png",plot = FC_AdjP_unstim_jurkat_DHS_enrichment_heat_map, path = "/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/plots")
 ```
 
 # Stimulated Jurkat
+
+This is uploading the dhs position data. 
+```{r load DHS data}
+#Read in DHS position file
+# This is a data frame I made to get rid of a few steps in the creation of dhs.pos
+dhs.pos <- read.table("/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/data/dhs.pos.data", sep="\t", header=T)
+#Make into GRanges format
+dhs.pos.se<-makeGRangesFromDataFrame(dhs.pos, seqnames = "seqname", start.field = "start", end.field = "end",keep.extra.columns=TRUE) 
+```
 
 ## Load Stimulated jurkat MPRA data and Jurkat dhs data
 ```{r load stim jurkat}
@@ -382,7 +394,7 @@ pcre_index<-subset(mpra2, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew") & !is
 non_pcre_index<-subset(mpra2, mpra_sig=="nEnhancer_nSkew" & !is.na(peak_index))$peak_index #peak indices for MPRA non-pCRE SNPs
 
 # This code creates the sample dataframe which in this case is just jurkat. It is originally made with all the biosample names. 
-sample.dat <- data.frame(c("jurkat"))
+sample.dat <- data.frame(c("Jurkat"))
 colnames(sample.dat) <- "sample"
 
 # Calculate enrichments of MPRA pCREs in DHS peaks for each cell type
@@ -433,6 +445,15 @@ FC_AdjP_stim_jurkat_DHS_enrichment_heat_map
 
 
 # GM12878
+
+This is uploading the dhs position data. 
+```{r load DHS data}
+#Read in DHS position file
+# This is a data frame I made to get rid of a few steps in the creation of dhs.pos
+dhs.pos <- read.table("/nfs/jray/screens/ALL_MPRAs/Ho_et_al_analysis/Downstream_Analysis/precision_and_recall_analysis/data/dhs.pos.data", sep="\t", header=T)
+#Make into GRanges format
+dhs.pos.se<-makeGRangesFromDataFrame(dhs.pos, seqnames = "seqname", start.field = "start", end.field = "end",keep.extra.columns=TRUE) 
+```
 
 ## Load GM12878 MPRA data and GM12878 dhs data
 ```{r load GM}
@@ -513,7 +534,7 @@ pcre_index<-subset(mpra2, mpra_sig%in%c("Enhancer_nSkew", "Enhancer_Skew") & !is
 non_pcre_index<-subset(mpra2, mpra_sig=="nEnhancer_nSkew" & !is.na(peak_index))$peak_index #peak indices for MPRA non-pCRE SNPs
 
 # This code creates the sample dataframe which in this case is just CD4. It is originally made with all the biosample names. 
-sample.dat <- data.frame(c("CD4"))
+sample.dat <- data.frame(c("GM12878"))
 colnames(sample.dat) <- "sample"
 
 # Calculate enrichments of MPRA pCREs in DHS peaks for each cell type
